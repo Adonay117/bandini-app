@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
+/* Bandini SV — paleta de marca */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f4fa;
+  --foreground: #2a2a2a;
 }
 
 @theme inline {
@@ -10,17 +11,33 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Marca */
+  --color-primary: #3f365b;
+  --color-primary-hover: #332c4a;
+  --color-secondary: #d8d1f1;
+  --color-surface: #ece8f6;
+  --color-ink: #2a2a2a;
+
+  /* Derivados de la marca para jerarquía de texto — tonos morado-gris en
+     vez de un gris neutro genérico, para que toda la interfaz se sienta
+     parte de la misma paleta. */
+  --color-muted: #6e6480;
+  --color-muted-light: #9c93ac;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* recharts renders its axis/label text with the browser default sans-serif,
+   which visually clashes with Geist used everywhere else in the app. */
+.recharts-text,
+.recharts-cartesian-axis-tick-value {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.recharts-surface {
+  overflow: visible;
 }
