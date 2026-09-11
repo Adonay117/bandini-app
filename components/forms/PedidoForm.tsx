@@ -2,9 +2,10 @@
 
 import { FormEvent, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { ClienteAvatar } from '@/components/clientes/ClienteAvatar';
+import { StickerProgress } from '@/components/clientes/StickerProgress';
 import { useClientes } from '@/lib/hooks/useClientes';
 import { usePedidos } from '@/lib/hooks/usePedidos';
 import { Cliente } from '@/lib/types';
@@ -45,49 +46,76 @@ export function PedidoForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex max-w-lg flex-col gap-4 rounded-2xl border border-secondary/70 bg-white p-6 shadow-sm">
-      <div className="relative">
-        <Input
-          label="Cliente"
-          placeholder="Buscar por nombre o teléfono…"
-          value={clienteQuery}
-          onChange={(e) => {
-            setClienteQuery(e.target.value);
-            setClienteSeleccionado(null);
-          }}
-          required
-        />
-        {clienteSeleccionado && (
-          <span className="absolute right-3 top-8 flex items-center gap-1 text-xs font-medium text-emerald-600">
-            <Check size={13} /> seleccionado
-          </span>
+    <form
+      onSubmit={handleSubmit}
+      className="flex max-w-lg flex-col gap-4 rounded-2xl border border-border bg-white p-6 shadow-[var(--shadow-card)]"
+    >
+      <div>
+        <label className="mb-1.5 block text-xs font-medium text-muted">Cliente</label>
+        {clienteSeleccionado ? (
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-surface/60 p-3">
+            <ClienteAvatar nombre={clienteSeleccionado.nombre} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-ink">{clienteSeleccionado.nombre}</p>
+              <p className="truncate text-xs text-muted-light">{clienteSeleccionado.telefono}</p>
+              <div className="mt-1">
+                <StickerProgress actuales={clienteSeleccionado.stickers_actuales} />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setClienteSeleccionado(null);
+                setClienteQuery('');
+              }}
+              className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-primary hover:bg-secondary/50"
+            >
+              Cambiar
+            </button>
+          </div>
+        ) : (
+          <div className="relative">
+            <SearchInput
+              value={clienteQuery}
+              onChange={setClienteQuery}
+              placeholder="Buscar por nombre o teléfono…"
+            />
+            {clientesFiltrados.length > 0 && (
+              <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-border bg-white shadow-[var(--shadow-pop)]">
+                {clientesFiltrados.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-surface"
+                      onClick={() => {
+                        setClienteSeleccionado(c);
+                        setClienteQuery('');
+                      }}
+                    >
+                      <ClienteAvatar nombre={c.nombre} size="sm" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm text-ink">{c.nombre}</span>
+                        <span className="block truncate text-xs text-muted-light">{c.telefono}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {loadingClientes && <p className="mt-1.5 text-xs text-muted-light">Cargando clientes…</p>}
+          </div>
         )}
-        {clientesFiltrados.length > 0 && (
-          <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-secondary bg-white shadow-lg">
-            {clientesFiltrados.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  className="block w-full px-3.5 py-2.5 text-left text-sm hover:bg-surface"
-                  onClick={() => {
-                    setClienteSeleccionado(c);
-                    setClienteQuery(c.nombre);
-                  }}
-                >
-                  <span className="text-ink">{c.nombre}</span> <span className="text-muted-light">— {c.telefono}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {loadingClientes && <p className="mt-1 text-xs text-muted-light">Cargando clientes…</p>}
       </div>
 
       <p className="text-xs text-muted-light">
-        El pedido se crea vacío — agrega los artículos (con su precio y costo de envío) desde el detalle.
+        El pedido se crea vacío. Agregá los artículos, sus precios y los abonos desde el detalle.
       </p>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-negative">
+          {error}
+        </p>
+      )}
 
       <Button type="submit" disabled={!valido || submitting}>
         {submitting ? 'Creando…' : 'Crear pedido'}

@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   const fecha = params.get('fecha');
   const clienteNombre = params.get('cliente')?.trim();
   const lugar = params.get('lugar')?.trim();
+  const search = params.get('search')?.trim();
   const paginado = params.has('page');
 
   const supabase = createSupabaseAdminClient();
@@ -17,8 +18,9 @@ export async function GET(request: NextRequest) {
   // cliente_id: evita depender de filtrar sobre el recurso embebido, que en
   // PostgREST es más frágil con alias.
   let clienteIds: string[] | null = null;
-  if (clienteNombre || lugar) {
+  if (clienteNombre || lugar || search) {
     let clientesQuery = supabase.from('clientes').select('id');
+    if (search) clientesQuery = clientesQuery.or(`nombre.ilike.%${search}%,lugar.ilike.%${search}%`);
     if (clienteNombre) clientesQuery = clientesQuery.ilike('nombre', `%${clienteNombre}%`);
     if (lugar) clientesQuery = clientesQuery.ilike('lugar', `%${lugar}%`);
     const { data: clientesMatch, error: clientesError } = await clientesQuery;
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (clienteIds.length === 0) {
       if (paginado) {
         const { page, pageSize } = parsePaginacion(params);
-        return NextResponse.json({ data: [], total: 0, page, pageSize });
+        return NextResponse.json({ data: [], total: 0, page, pageSize, resumen: { porCobrar: 0, activos: 0 } });
       }
       return NextResponse.json([]);
     }
@@ -45,14 +47,29 @@ export async function GET(request: NextRequest) {
 
   if (paginado) {
     const { page, pageSize, from, to } = parsePaginacion(params);
-    const { data, error, count } = await query.range(from, to);
+
+    // Resumen global (independiente de filtros y página): saldo por cobrar y
+    // cantidad de pedidos que no están completados.
+    async function calcularResumen() {
+      const { data } = await supabase
+        .from('pedidos')
+        .select('estado, saldo_pendiente')
+        .neq('estado', 'completado');
+      const filas = data ?? [];
+      return {
+        activos: filas.length,
+        porCobrar: filas.reduce((s, p) => s + Number(p.saldo_pendiente ?? 0), 0),
+      };
+    }
+
+    const [{ data, error, count }, resumen] = await Promise.all([query.range(from, to), calcularResumen()]);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     const pedidos = (data ?? []).map(({ cliente, ...pedido }) => ({
       ...pedido,
       cliente_nombre: cliente?.nombre ?? null,
       cliente_lugar: cliente?.lugar ?? null,
     }));
-    return NextResponse.json({ data: pedidos, total: count ?? 0, page, pageSize });
+    return NextResponse.json({ data: pedidos, total: count ?? 0, page, pageSize, resumen });
   }
 
   const { data, error } = await query;

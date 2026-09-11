@@ -28,6 +28,7 @@ export interface Cliente {
   total_moneda_gastada: number;
   total_tarjetas_completadas: number;
   total_premios_ganados: number;
+  saldo_favor: number;
   acepta_notificaciones: boolean;
   fecha_registro: string;
   activo: boolean;
@@ -110,6 +111,7 @@ export interface Pedido {
   fecha_creacion: string;
   cliente_nombre?: string;
   cliente_lugar?: string;
+  cliente_telefono?: string;
 }
 
 export type EstadoItemPedido = 'pendiente' | 'comprado' | 'no_disponible' | 'entregado' | 'defectuoso';
@@ -132,6 +134,8 @@ export type MetodoPagoAbono = 'efectivo' | 'tarjeta' | 'transferencia';
 
 export type TipoAbonoPedido = 'abono' | 'reembolso';
 
+export type OrigenAbono = 'directo' | 'saldo_favor';
+
 export interface AbonoPedido {
   id: string;
   pedido_id: string;
@@ -140,6 +144,23 @@ export interface AbonoPedido {
   metodo_pago: MetodoPagoAbono | null;
   premio_id?: string;
   tipo: TipoAbonoPedido;
+  origen: OrigenAbono;
+}
+
+export type MotivoMovimientoSaldoFavor = 'recarga' | 'excedente' | 'aplicado_pedido' | 'ajuste';
+
+export interface MovimientoSaldoFavor {
+  id: string;
+  cliente_id: string;
+  monto: number;
+  motivo: MotivoMovimientoSaldoFavor;
+  es_cupon: boolean;
+  pedido_id?: string;
+  pedido_numero?: number;
+  abono_id?: string;
+  metodo_pago?: MetodoPagoAbono | null;
+  nota?: string;
+  fecha: string;
 }
 
 export type MotivoMerma = 'danado' | 'vencido' | 'roto' | 'otro';

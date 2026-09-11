@@ -1,27 +1,36 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import NextImage from 'next/image';
 import {
-  Plus,
+  AlertTriangle,
+  Check,
+  ChevronLeft,
+  Copy,
   ExternalLink,
   Gift,
-  Copy,
-  Check,
-  Pencil,
-  Trash2,
-  Loader2,
   Image as ImageIcon,
-  X,
-  AlertTriangle,
+  Loader2,
+  MessageCircle,
+  Pencil,
+  Plus,
+  Trash2,
   Undo2,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Badge } from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { StatTile } from '@/components/ui/StatTile';
+import { MetodoPagoBadge } from '@/components/ui/MetodoPagoBadge';
 import { PlataformaBadge } from '@/components/ui/PlataformaBadge';
-import { Loading } from '@/components/ui/Loading';
+import { ClienteAvatar } from '@/components/clientes/ClienteAvatar';
+import { EstadoStepper } from '@/components/pedidos/EstadoStepper';
+import { PedidoProgress } from '@/components/pedidos/PedidoProgress';
 import {
   AbonoPedido,
   EstadoItemPedido,
@@ -32,38 +41,18 @@ import {
   PremioSticker,
   ResolucionDefecto,
 } from '@/lib/types';
-import { formatCurrency, formatDate } from '@/lib/utils/formatters';
+import { formatCurrency, formatDate, whatsappUrl } from '@/lib/utils/formatters';
 import { comprimirImagen } from '@/lib/utils/image';
-import { estiloPlataforma } from '@/lib/utils/plataformas';
+import { estiloPlataforma, plataformaAplicaCupon } from '@/lib/utils/plataformas';
+import {
+  ESTADOS_ITEM,
+  ESTADO_ITEM,
+  ESTADO_PEDIDO,
+  ESTADO_PEDIDO_EMOJI,
+  ESTADO_PEDIDO_FRASE,
+} from '@/lib/utils/pedidos';
 
-type PedidoDetalle = Pedido & { items: PedidoItem[]; abonos: AbonoPedido[] };
-
-const estados: EstadoPedido[] = ['cotizacion', 'confirmado', 'en_transito', 'entregado', 'completado'];
-const estadosItem: EstadoItemPedido[] = ['pendiente', 'comprado', 'no_disponible', 'entregado', 'defectuoso'];
-
-const ESTADO_EMOJI: Record<EstadoPedido, string> = {
-  cotizacion: '📝',
-  confirmado: '✅',
-  en_transito: '🚚',
-  entregado: '📬',
-  completado: '🎉',
-};
-
-const ESTADO_LABEL: Record<EstadoPedido, string> = {
-  cotizacion: 'en cotización',
-  confirmado: 'confirmado',
-  en_transito: 'en tránsito',
-  entregado: 'entregado',
-  completado: 'completado',
-};
-
-const ESTADO_ITEM_INFO: Record<EstadoItemPedido, { emoji: string; label: string }> = {
-  pendiente: { emoji: '⏳', label: 'pendiente de compra' },
-  comprado: { emoji: '✅', label: 'comprado' },
-  no_disponible: { emoji: '🚫', label: 'no disponible' },
-  entregado: { emoji: '📬', label: 'entregado' },
-  defectuoso: { emoji: '⚠️', label: 'defectuoso' },
-};
+type PedidoDetalle = Pedido & { items: PedidoItem[]; abonos: AbonoPedido[]; cliente_saldo_favor: number };
 
 function agruparPorPlataforma(items: PedidoItem[]): string {
   if (items.length === 0) return '(sin artículos)';
@@ -75,16 +64,15 @@ function agruparPorPlataforma(items: PedidoItem[]): string {
     grupos.get(clave)!.push(item);
   }
 
-  const plataformas = Array.from(grupos.keys()).sort((a, b) => a.localeCompare(b, 'es'));
-
-  return plataformas
+  return Array.from(grupos.keys())
+    .sort((a, b) => a.localeCompare(b, 'es'))
     .map((plataforma) => {
       const lineas = grupos
         .get(plataforma)!
         .map((i) => {
-          const { emoji, label } = ESTADO_ITEM_INFO[i.estado_item];
+          const { emoji, label } = ESTADO_ITEM[i.estado_item];
           const precioNeto = i.precio - i.monto_reembolsado;
-          return `• ${i.producto} — ${formatCurrency(precioNeto)} ${emoji} ${label}`;
+          return `• ${i.producto} — ${formatCurrency(precioNeto)} ${emoji} ${label.toLowerCase()}`;
         })
         .join('\n');
       return `${estiloPlataforma(plataforma).emoji} *${plataforma}*\n${lineas}`;
@@ -95,33 +83,40 @@ function agruparPorPlataforma(items: PedidoItem[]): string {
 function construirMensaje(data: PedidoDetalle): string {
   const items = agruparPorPlataforma(data.items);
   const nombre = data.cliente_nombre ?? 'cliente';
-  const cantidad = data.items.length;
   const saldoAlDia = data.saldo_pendiente <= 0;
 
   return [
-    `${ESTADO_EMOJI[data.estado]} Pedido #${data.numero} — ${ESTADO_LABEL[data.estado]}`,
+    `${ESTADO_PEDIDO_EMOJI[data.estado]} Pedido #${data.numero} — ${ESTADO_PEDIDO_FRASE[data.estado]}`,
     `📅 ${formatDate(data.fecha_creacion)}`,
     '',
     `Hola ${nombre}, este es el detalle de tu pedido:`,
     '',
-    `🛍️ Artículos (${cantidad}):`,
+    `🛍️ Artículos (${data.items.length}):`,
     items,
     '',
     `💰 Total: ${formatCurrency(data.total_pedido)}`,
     `✅ Abonado: ${formatCurrency(data.total_abonado)}`,
-    saldoAlDia ? '🎉 ¡Pedido pagado en su totalidad!' : `⏳ Saldo pendiente: ${formatCurrency(data.saldo_pendiente)}`,
+    saldoAlDia
+      ? '🎉 ¡Pedido pagado en su totalidad!'
+      : `⏳ Saldo pendiente: ${formatCurrency(data.saldo_pendiente)}`,
     '',
     '¡Gracias por tu preferencia! 💜',
   ].join('\n');
 }
 
-function ImagenArticulo({
-  imagenUrl,
-  onImagenChange,
-}: {
-  imagenUrl: string;
-  onImagenChange: (url: string) => void;
-}) {
+function Panel({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-border bg-white p-5 shadow-[var(--shadow-card)] sm:p-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-ink">{title}</h3>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ImagenArticulo({ imagenUrl, onImagenChange }: { imagenUrl: string; onImagenChange: (url: string) => void }) {
   const [subiendo, setSubiendo] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -147,7 +142,7 @@ function ImagenArticulo({
 
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-secondary bg-surface">
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface">
         {subiendo ? (
           <Loader2 size={16} className="animate-spin text-muted-light" />
         ) : imagenUrl ? (
@@ -171,7 +166,7 @@ function ImagenArticulo({
           <button
             type="button"
             onClick={() => onImagenChange('')}
-            className="flex w-fit items-center gap-1 text-xs text-muted-light hover:text-red-600"
+            className="flex w-fit items-center gap-1 text-xs text-muted-light hover:text-negative"
           >
             <X size={11} /> Quitar imagen
           </button>
@@ -187,7 +182,13 @@ function EditarItemForm({
   onCancelar,
 }: {
   item: PedidoItem;
-  onGuardar: (cambios: { plataforma: string; producto: string; precio: number; url?: string; imagen_url?: string }) => Promise<void>;
+  onGuardar: (cambios: {
+    plataforma: string;
+    producto: string;
+    precio: number;
+    url?: string;
+    imagen_url?: string;
+  }) => Promise<void>;
   onCancelar: () => void;
 }) {
   const [plataforma, setPlataforma] = useState(item.plataforma);
@@ -215,7 +216,7 @@ function EditarItemForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2 rounded-xl border border-secondary bg-surface p-3">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 rounded-xl border border-border bg-surface/60 p-3">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Input placeholder="Plataforma" value={plataforma} onChange={(e) => setPlataforma(e.target.value)} />
@@ -228,6 +229,7 @@ function EditarItemForm({
       <Input
         placeholder="Precio"
         type="number"
+        inputMode="decimal"
         min="0"
         step="0.01"
         value={precio}
@@ -308,9 +310,9 @@ function ResolverDefectoPanel({
   }
 
   return (
-    <div className="mt-2 flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3">
-      <p className="flex items-center gap-1.5 text-xs font-medium text-amber-700">
-        <AlertTriangle size={13} /> Artículo defectuoso — {formatCurrency(disponibleReembolso)} pendientes de resolver
+    <div className="mt-2 flex flex-col gap-3 rounded-xl border border-warning/40 bg-warning-surface p-3">
+      <p className="flex items-center gap-1.5 text-xs font-medium text-warning">
+        <AlertTriangle size={13} /> Defectuoso — {formatCurrency(disponibleReembolso)} pendientes de resolver
       </p>
 
       {modo === null && (
@@ -347,6 +349,7 @@ function ResolverDefectoPanel({
           <Input
             placeholder="Precio"
             type="number"
+            inputMode="decimal"
             min="0"
             step="0.01"
             value={precio}
@@ -366,10 +369,13 @@ function ResolverDefectoPanel({
 
       {modo === 'reembolso_parcial' && (
         <form onSubmit={handleReembolsoParcial} className="flex flex-col gap-2">
-          <p className="text-xs text-muted">Monto a devolver al cliente (el resto queda como pérdida del artículo):</p>
+          <p className="text-xs text-muted">
+            Monto a devolver al cliente (el resto queda como pérdida del artículo):
+          </p>
           <Input
             placeholder={`Máx. ${formatCurrency(disponibleReembolso)}`}
             type="number"
+            inputMode="decimal"
             min="0.01"
             step="0.01"
             max={disponibleReembolso}
@@ -388,7 +394,11 @@ function ResolverDefectoPanel({
         </form>
       )}
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-xs text-negative">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -401,6 +411,7 @@ export default function PedidoDetallePage() {
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [editandoItemId, setEditandoItemId] = useState<string | null>(null);
+  const [mostrarAgregar, setMostrarAgregar] = useState(false);
 
   const [plataforma, setPlataforma] = useState('');
   const [producto, setProducto] = useState('');
@@ -412,6 +423,10 @@ export default function PedidoDetallePage() {
   const [montoAbono, setMontoAbono] = useState('');
   const [metodoPagoAbono, setMetodoPagoAbono] = useState<MetodoPagoAbono>('efectivo');
   const [agregandoAbono, setAgregandoAbono] = useState(false);
+  const [avisoAbono, setAvisoAbono] = useState<string | null>(null);
+
+  const [montoSaldoFavor, setMontoSaldoFavor] = useState('');
+  const [usandoSaldoFavor, setUsandoSaldoFavor] = useState(false);
 
   const [premiosDisponibles, setPremiosDisponibles] = useState<PremioSticker[]>([]);
   const [aplicandoPremio, setAplicandoPremio] = useState<string | null>(null);
@@ -452,6 +467,10 @@ export default function PedidoDetallePage() {
   }, [data?.cliente_id, cargarPremios]);
 
   const mensaje = useMemo(() => (data ? construirMensaje(data) : ''), [data]);
+  const itemsAplicanCupon = useMemo(
+    () => (data ? data.items.some((item) => plataformaAplicaCupon(item.plataforma)) : false),
+    [data]
+  );
 
   async function copiarDetalle() {
     await navigator.clipboard.writeText(mensaje);
@@ -499,6 +518,7 @@ export default function PedidoDetallePage() {
       setPrecio('');
       setUrl('');
       setImagenUrl('');
+      setMostrarAgregar(false);
       await cargar();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al agregar artículo');
@@ -561,19 +581,48 @@ export default function PedidoDetallePage() {
     if (!(Number(montoAbono) > 0)) return;
 
     setAgregandoAbono(true);
+    setAvisoAbono(null);
     try {
       const res = await fetch(`/api/pedidos/${params.id}/abonos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ monto: Number(montoAbono), metodo_pago: metodoPagoAbono }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Error al registrar abono');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Error al registrar abono');
+      if (json.excedente > 0) {
+        setAvisoAbono(
+          `Se abonó ${formatCurrency(Number(montoAbono) - json.excedente)} al pedido; ${formatCurrency(json.excedente)} pasó al saldo a favor del cliente.`
+        );
+      }
       setMontoAbono('');
       await cargar();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar abono');
     } finally {
       setAgregandoAbono(false);
+    }
+  }
+
+  async function usarSaldoFavor(e: FormEvent) {
+    e.preventDefault();
+    if (!(Number(montoSaldoFavor) > 0)) return;
+
+    setUsandoSaldoFavor(true);
+    setAvisoAbono(null);
+    try {
+      const res = await fetch(`/api/pedidos/${params.id}/abonos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ desde_saldo_favor: true, monto: Number(montoSaldoFavor) }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Error al usar el saldo a favor');
+      setMontoSaldoFavor('');
+      await cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al usar el saldo a favor');
+    } finally {
+      setUsandoSaldoFavor(false);
     }
   }
 
@@ -595,68 +644,257 @@ export default function PedidoDetallePage() {
     }
   }
 
-  if (loading) return <Loading label="Cargando pedido…" />;
-  if (error && !data) return <p className="text-sm text-red-600">{error}</p>;
+  if (loading && !data) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-28 rounded-2xl" />
+        <Skeleton className="h-24 rounded-2xl" />
+        <Skeleton className="h-64 rounded-2xl" />
+      </div>
+    );
+  }
+  if (error && !data)
+    return (
+      <div role="alert" className="rounded-xl border border-negative-surface bg-negative-surface/40 p-4 text-sm text-negative">
+        {error}
+      </div>
+    );
   if (!data) return null;
+
+  const est = ESTADO_PEDIDO[data.estado];
+  const saldado = data.saldo_pendiente <= 0 && data.total_pedido > 0;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">Pedido #{data.numero}</h1>
-          {data.cliente_nombre && (
-            <p className="mt-1 text-sm text-muted">
-              {data.cliente_nombre}
-              {data.cliente_lugar ? ` · ${data.cliente_lugar}` : ''}
-            </p>
+      <Link
+        href="/pedidos"
+        className="inline-flex w-fit items-center gap-1 text-sm text-muted transition-colors hover:text-ink"
+      >
+        <ChevronLeft size={15} /> Pedidos
+      </Link>
+
+      {/* Hero */}
+      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-white p-5 shadow-[var(--shadow-card)] sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div className="flex items-center gap-4">
+          {data.cliente_nombre ? (
+            <ClienteAvatar nombre={data.cliente_nombre} size="lg" />
+          ) : (
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-surface text-muted-light">
+              #
+            </span>
           )}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">Pedido #{data.numero}</h1>
+              <Badge variant={est.badge}>{est.label}</Badge>
+            </div>
+            {data.cliente_nombre && (
+              <p className="mt-0.5 truncate text-sm text-muted">
+                {data.cliente_id ? (
+                  <Link href={`/clientes/${data.cliente_id}`} className="font-medium text-primary hover:underline">
+                    {data.cliente_nombre}
+                  </Link>
+                ) : (
+                  data.cliente_nombre
+                )}
+                {data.cliente_lugar && ` · ${data.cliente_lugar}`}
+              </p>
+            )}
+            <p className="text-xs text-muted-light">Creado el {formatDate(data.fecha_creacion)}</p>
+          </div>
         </div>
-        <Button type="button" variant="secondary" onClick={copiarDetalle}>
-          {copiado ? <Check size={15} /> : <Copy size={15} />}
-          {copiado ? 'Copiado' : 'Copiar detalle'}
-        </Button>
-      </div>
-
-      <div className="rounded-2xl border border-secondary/70 bg-white p-6 shadow-sm">
-        <div className="mb-5 flex flex-wrap gap-2">
-          {estados.map((estado) => (
-            <button
-              key={estado}
-              type="button"
-              disabled={cambiandoEstado || estado === data.estado}
-              onClick={() => cambiarEstado(estado)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                estado === data.estado
-                  ? 'bg-primary text-white'
-                  : 'bg-surface text-muted hover:bg-secondary disabled:opacity-50'
-              }`}
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {data.cliente_telefono && (
+            <a
+              href={whatsappUrl(data.cliente_telefono)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-positive px-4 py-2.5 text-sm font-medium text-white transition-colors hover:brightness-95"
             >
-              {estado}
-            </button>
-          ))}
+              <MessageCircle size={15} /> WhatsApp
+            </a>
+          )}
+          <Button type="button" variant="secondary" onClick={copiarDetalle}>
+            {copiado ? <Check size={15} /> : <Copy size={15} />}
+            {copiado ? 'Copiado' : 'Copiar detalle'}
+          </Button>
         </div>
-        <dl className="grid grid-cols-3 gap-4 border-t border-secondary/60 pt-4 text-sm">
-          <div>
-            <dt className="text-xs text-muted-light uppercase">Total artículos</dt>
-            <dd className="mt-1 font-medium text-ink">{formatCurrency(data.total_articulos)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted-light uppercase">Abonado</dt>
-            <dd className="mt-1 font-medium text-ink">{formatCurrency(data.total_abonado)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted-light uppercase">Saldo pendiente</dt>
-            <dd className="mt-1 font-semibold text-ink">{formatCurrency(data.saldo_pendiente)}</dd>
-          </div>
-        </dl>
       </div>
 
-      <div className="rounded-2xl border border-secondary/70 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-xs font-medium tracking-wide text-muted-light uppercase">Artículos</h3>
-        {data.items.length === 0 ? (
-          <p className="mb-4 text-sm text-muted-light">Sin artículos agregados.</p>
+      {/* Estado */}
+      <Panel title="Estado del pedido">
+        <EstadoStepper actual={data.estado} onChange={cambiarEstado} disabled={cambiandoEstado} />
+      </Panel>
+
+      {/* Pago */}
+      <Panel title="Pago">
+        <div className="grid grid-cols-3 gap-3">
+          <StatTile label="Total" value={formatCurrency(data.total_pedido)} />
+          <StatTile label="Abonado" value={formatCurrency(data.total_abonado)} />
+          <StatTile
+            label="Saldo"
+            value={formatCurrency(data.saldo_pendiente)}
+            tone={saldado ? 'positive' : data.saldo_pendiente > 0 ? 'warning' : 'default'}
+          />
+        </div>
+
+        <PedidoProgress
+          className="mt-4"
+          total={data.total_pedido}
+          abonado={data.total_abonado}
+          saldo={data.saldo_pendiente}
+        />
+
+        {data.saldo_pendiente > 0 && premiosDisponibles.length > 0 && (
+          <div className="mt-4 flex flex-col gap-2 rounded-xl border border-border bg-secondary/20 p-3">
+            <p className="text-xs font-semibold text-primary">Premios disponibles del cliente</p>
+            {premiosDisponibles.map((p) => (
+              <div
+                key={p.id}
+                className="flex flex-col gap-1.5 border-b border-border pb-2 text-sm last:border-0 last:pb-0"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-muted">
+                    <Gift size={14} className="text-primary" />
+                    {formatCurrency(p.premio_monto)} · {p.stickers_alcanzados} stickers
+                  </span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => aplicarPremio(p.id)}
+                    disabled={aplicandoPremio === p.id || !itemsAplicanCupon}
+                    title={itemsAplicanCupon ? undefined : 'Solo aplicable a pedidos con artículos de Shein o Temu'}
+                  >
+                    {aplicandoPremio === p.id ? 'Aplicando…' : 'Aplicar como descuento'}
+                  </Button>
+                </div>
+                <label className="flex items-center gap-1.5 text-xs text-muted-light">
+                  <input
+                    type="checkbox"
+                    checked={cuponPorPremio[p.id] ?? false}
+                    onChange={(e) => setCuponPorPremio((prev) => ({ ...prev, [p.id]: e.target.checked }))}
+                    className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary/30"
+                  />
+                  Cubierto con cupón del proveedor (no genera egreso)
+                </label>
+              </div>
+            ))}
+            {!itemsAplicanCupon && (
+              <p className="text-xs text-muted-light">
+                Solo aplicable a pedidos con artículos de Shein o Temu.
+              </p>
+            )}
+          </div>
+        )}
+
+        {data.saldo_pendiente > 0 && data.cliente_saldo_favor > 0 && (
+          <form onSubmit={usarSaldoFavor} className="mt-4 flex flex-col gap-2 rounded-xl border border-border bg-secondary/20 p-3 sm:flex-row sm:items-end">
+            <Input
+              label={`Usar saldo a favor (disponible ${formatCurrency(data.cliente_saldo_favor)})`}
+              placeholder={`Máx. ${formatCurrency(Math.min(data.cliente_saldo_favor, data.saldo_pendiente))}`}
+              type="number"
+              inputMode="decimal"
+              min="0"
+              max={Math.min(data.cliente_saldo_favor, data.saldo_pendiente)}
+              step="0.01"
+              value={montoSaldoFavor}
+              onChange={(e) => setMontoSaldoFavor(e.target.value)}
+              className="sm:w-52"
+            />
+            <Button type="submit" variant="secondary" disabled={usandoSaldoFavor || !(Number(montoSaldoFavor) > 0)}>
+              {usandoSaldoFavor ? 'Aplicando…' : 'Usar saldo a favor'}
+            </Button>
+          </form>
+        )}
+
+        {data.saldo_pendiente > 0 ? (
+          <form onSubmit={agregarAbono} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+            <Input
+              label="Registrar abono"
+              placeholder={`Máx. ${formatCurrency(data.saldo_pendiente)} (el excedente va al saldo a favor)`}
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={montoAbono}
+              onChange={(e) => setMontoAbono(e.target.value)}
+              className="sm:w-40"
+            />
+            <Select
+              value={metodoPagoAbono}
+              onChange={(e) => setMetodoPagoAbono(e.target.value as MetodoPagoAbono)}
+              className="sm:w-40"
+            >
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+            </Select>
+            <Button type="submit" disabled={agregandoAbono || !(Number(montoAbono) > 0)}>
+              <Plus size={15} /> {agregandoAbono ? 'Registrando…' : 'Abonar'}
+            </Button>
+          </form>
         ) : (
-          <ul className="mb-4 flex flex-col gap-3 text-sm">
+          data.total_pedido > 0 && (
+            <p className="mt-4 flex items-center gap-1.5 text-sm font-medium text-positive">
+              <Check size={15} /> Pedido saldado.
+            </p>
+          )
+        )}
+
+        {avisoAbono && (
+          <p role="status" aria-live="polite" className="mt-2 text-xs text-primary">
+            {avisoAbono}
+          </p>
+        )}
+
+        {data.abonos.length > 0 && (
+          <ul className="mt-4 flex flex-col border-t border-border pt-3 text-sm">
+            {data.abonos.map((a) => (
+              <li key={a.id} className="flex items-center justify-between gap-3 border-b border-border py-2 last:border-0">
+                <span
+                  className={`flex items-center gap-1.5 font-medium tabular-nums ${
+                    a.tipo === 'reembolso' ? 'text-negative' : 'text-ink'
+                  }`}
+                >
+                  {a.tipo === 'reembolso' && <Undo2 size={13} />}
+                  {a.premio_id && <Gift size={13} className="text-primary" />}
+                  {a.tipo === 'reembolso' ? '−' : ''}
+                  {formatCurrency(a.monto)}
+                </span>
+                <span className="flex items-center gap-2 text-xs text-muted-light">
+                  {a.tipo === 'reembolso' ? (
+                    'Reembolso al cliente'
+                  ) : a.premio_id ? (
+                    'Premio canjeado'
+                  ) : a.origen === 'saldo_favor' ? (
+                    'Saldo a favor'
+                  ) : (
+                    <MetodoPagoBadge metodo={a.metodo_pago} />
+                  )}
+                  <span>{formatDate(a.fecha_abono)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+
+      {/* Artículos */}
+      <Panel
+        title={`Artículos${data.items.length ? ` (${data.items.length})` : ''}`}
+        action={
+          !mostrarAgregar && (
+            <Button type="button" variant="secondary" onClick={() => setMostrarAgregar(true)}>
+              <Plus size={15} /> Agregar
+            </Button>
+          )
+        }
+      >
+        {data.items.length === 0 && !mostrarAgregar ? (
+          <p className="text-sm text-muted-light">Sin artículos agregados.</p>
+        ) : (
+          <ul className="flex flex-col gap-3 text-sm">
             {data.items.map((item) =>
               editandoItemId === item.id ? (
                 <li key={item.id}>
@@ -667,8 +905,11 @@ export default function PedidoDetallePage() {
                   />
                 </li>
               ) : (
-                <li key={item.id} className="flex items-start gap-3 border-b border-secondary/60 pb-3 last:border-0 last:pb-0">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-secondary bg-surface">
+                <li
+                  key={item.id}
+                  className="flex items-start gap-3 border-b border-border pb-3 last:border-0 last:pb-0"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface">
                     {item.imagen_url ? (
                       <NextImage
                         src={item.imagen_url}
@@ -692,18 +933,18 @@ export default function PedidoDetallePage() {
                             href={item.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="ml-1 inline-flex align-middle text-muted-light hover:text-primary"
+                            className="inline-flex align-middle text-muted-light hover:text-primary"
                             title="Ver artículo original"
                           >
                             <ExternalLink size={12} />
                           </a>
                         )}
                       </span>
-                      <div className="flex shrink-0 items-center gap-1">
+                      <div className="flex shrink-0 items-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => setEditandoItemId(item.id)}
-                          className="rounded-lg p-1 text-muted-light hover:bg-surface hover:text-muted"
+                          className="rounded-lg p-2.5 text-muted-light hover:bg-surface hover:text-muted"
                           aria-label="Editar artículo"
                         >
                           <Pencil size={13} />
@@ -711,7 +952,7 @@ export default function PedidoDetallePage() {
                         <button
                           type="button"
                           onClick={() => eliminarItem(item.id)}
-                          className="rounded-lg p-1 text-muted-light hover:bg-red-50 hover:text-red-600"
+                          className="rounded-lg p-2.5 text-muted-light hover:bg-negative-surface hover:text-negative"
                           aria-label="Quitar artículo"
                         >
                           <Trash2 size={13} />
@@ -720,26 +961,26 @@ export default function PedidoDetallePage() {
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-2">
                       {item.monto_reembolsado > 0 ? (
-                        <span className="flex items-center gap-1.5">
+                        <span className="flex items-center gap-1.5 tabular-nums">
                           <span className="text-muted-light line-through">{formatCurrency(item.precio)}</span>
                           <span className="font-medium text-ink">
                             {formatCurrency(item.precio - item.monto_reembolsado)}
                           </span>
-                          <span className="text-xs text-red-600">
-                            (-{formatCurrency(item.monto_reembolsado)} reembolsado)
+                          <span className="text-xs text-negative">
+                            −{formatCurrency(item.monto_reembolsado)} reemb.
                           </span>
                         </span>
                       ) : (
-                        <span className="text-muted">{formatCurrency(item.precio)}</span>
+                        <span className="text-muted tabular-nums">{formatCurrency(item.precio)}</span>
                       )}
                       <Select
                         value={item.estado_item}
                         onChange={(e) => actualizarEstadoItem(item.id, e.target.value as EstadoItemPedido)}
                         className="w-auto"
                       >
-                        {estadosItem.map((estadoItem) => (
+                        {ESTADOS_ITEM.map((estadoItem) => (
                           <option key={estadoItem} value={estadoItem}>
-                            {ESTADO_ITEM_INFO[estadoItem].emoji} {ESTADO_ITEM_INFO[estadoItem].label}
+                            {ESTADO_ITEM[estadoItem].emoji} {ESTADO_ITEM[estadoItem].label}
                           </option>
                         ))}
                       </Select>
@@ -754,114 +995,53 @@ export default function PedidoDetallePage() {
           </ul>
         )}
 
-        <form onSubmit={agregarItem} className="flex flex-col gap-3 rounded-xl border border-dashed border-secondary p-4">
-          <p className="text-xs font-medium text-muted">Agregar artículo</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Input placeholder="Plataforma" value={plataforma} onChange={(e) => setPlataforma(e.target.value)} />
-              {plataforma.trim() && <PlataformaBadge plataforma={plataforma.trim()} />}
+        {mostrarAgregar && (
+          <form
+            onSubmit={agregarItem}
+            className="mt-3 flex flex-col gap-3 rounded-xl border border-dashed border-border p-4"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted">Agregar artículo</p>
+              <button
+                type="button"
+                onClick={() => setMostrarAgregar(false)}
+                className="rounded-lg p-2.5 text-muted-light hover:bg-surface hover:text-muted"
+                aria-label="Cerrar"
+              >
+                <X size={14} />
+              </button>
             </div>
-            <Input placeholder="Producto" value={producto} onChange={(e) => setProducto(e.target.value)} />
-          </div>
-          <Input placeholder="URL del artículo (opcional)" value={url} onChange={(e) => setUrl(e.target.value)} />
-          <ImagenArticulo imagenUrl={imagenUrl} onImagenChange={setImagenUrl} />
-          <Input
-            placeholder="Precio"
-            type="number"
-            min="0"
-            step="0.01"
-            value={precio}
-            onChange={(e) => setPrecio(e.target.value)}
-            className="sm:max-w-[160px]"
-          />
-          <Button type="submit" disabled={agregandoItem} className="w-full sm:w-auto">
-            <Plus size={15} /> {agregandoItem ? 'Agregando…' : 'Agregar artículo'}
-          </Button>
-        </form>
-      </div>
-
-      <div className="rounded-2xl border border-secondary/70 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-xs font-medium tracking-wide text-muted-light uppercase">Abonos</h3>
-        {data.abonos.length === 0 ? (
-          <p className="mb-4 text-sm text-muted-light">Sin abonos registrados.</p>
-        ) : (
-          <ul className="mb-4 flex flex-col gap-3 text-sm">
-            {data.abonos.map((a) => (
-              <li key={a.id} className="flex justify-between border-b border-secondary/60 pb-3 last:border-0 last:pb-0">
-                <span className={`flex items-center gap-1.5 font-medium ${a.tipo === 'reembolso' ? 'text-red-600' : 'text-ink'}`}>
-                  {a.tipo === 'reembolso' && <Undo2 size={14} />}
-                  {a.premio_id && <Gift size={14} className="text-primary" />}
-                  {a.tipo === 'reembolso' ? '-' : ''}
-                  {formatCurrency(a.monto)}
-                </span>
-                <span className="text-muted-light">
-                  {a.tipo === 'reembolso' ? 'Reembolso al cliente' : a.premio_id ? 'Premio canjeado' : a.metodo_pago} ·{' '}
-                  {formatDate(a.fecha_abono)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {data.saldo_pendiente > 0 && premiosDisponibles.length > 0 && (
-          <div className="mb-4 flex flex-col gap-2 rounded-xl border border-secondary bg-secondary/30 p-3">
-            <p className="text-xs font-medium text-primary">Premios disponibles del cliente</p>
-            {premiosDisponibles.map((p) => (
-              <div key={p.id} className="flex flex-col gap-1.5 border-b border-secondary/60 pb-2 text-sm last:border-0 last:pb-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 text-muted">
-                    <Gift size={14} className="text-primary" />
-                    {formatCurrency(p.premio_monto)} ({p.stickers_alcanzados} stickers)
-                  </span>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => aplicarPremio(p.id)}
-                    disabled={aplicandoPremio === p.id}
-                  >
-                    {aplicandoPremio === p.id ? 'Aplicando…' : 'Aplicar como descuento'}
-                  </Button>
-                </div>
-                <label className="flex items-center gap-1.5 text-xs text-muted-light">
-                  <input
-                    type="checkbox"
-                    checked={cuponPorPremio[p.id] ?? false}
-                    onChange={(e) => setCuponPorPremio((prev) => ({ ...prev, [p.id]: e.target.checked }))}
-                    className="h-3.5 w-3.5 rounded border-secondary text-primary focus:ring-primary/30"
-                  />
-                  Cubierto con cupón del proveedor (no genera egreso)
-                </label>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Input placeholder="Plataforma" value={plataforma} onChange={(e) => setPlataforma(e.target.value)} />
+                {plataforma.trim() && <PlataformaBadge plataforma={plataforma.trim()} />}
               </div>
-            ))}
-          </div>
-        )}
-
-        {data.saldo_pendiente > 0 ? (
-          <form onSubmit={agregarAbono} className="grid grid-cols-3 gap-2">
+              <Input placeholder="Producto" value={producto} onChange={(e) => setProducto(e.target.value)} />
+            </div>
+            <Input placeholder="URL del artículo (opcional)" value={url} onChange={(e) => setUrl(e.target.value)} />
+            <ImagenArticulo imagenUrl={imagenUrl} onImagenChange={setImagenUrl} />
             <Input
-              placeholder={`Monto (saldo: ${formatCurrency(data.saldo_pendiente)})`}
+              placeholder="Precio"
               type="number"
+              inputMode="decimal"
               min="0"
               step="0.01"
-              value={montoAbono}
-              onChange={(e) => setMontoAbono(e.target.value)}
-              className="col-span-2 sm:col-span-1"
+              value={precio}
+              onChange={(e) => setPrecio(e.target.value)}
+              className="sm:max-w-[160px]"
             />
-            <Select value={metodoPagoAbono} onChange={(e) => setMetodoPagoAbono(e.target.value as MetodoPagoAbono)}>
-              <option value="efectivo">Efectivo</option>
-              <option value="tarjeta">Tarjeta</option>
-              <option value="transferencia">Transferencia</option>
-            </Select>
-            <Button type="submit" variant="secondary" disabled={agregandoAbono}>
-              <Plus size={15} /> Abonar
+            <Button type="submit" disabled={agregandoItem} className="w-full sm:w-auto">
+              <Plus size={15} /> {agregandoItem ? 'Agregando…' : 'Agregar artículo'}
             </Button>
           </form>
-        ) : (
-          <p className="text-sm text-emerald-600">Pedido saldado.</p>
         )}
-      </div>
+      </Panel>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-negative">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

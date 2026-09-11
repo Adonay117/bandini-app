@@ -2,8 +2,14 @@
 
 /* Bandini SV — paleta de marca */
 :root {
-  --background: #f7f4fa;
+  --background: #f6f3fb;
   --foreground: #2a2a2a;
+
+  /* Elevación — sombras suaves teñidas de morado en vez del negro plano
+     que usa la sombra por defecto de Tailwind. */
+  --shadow-card: 0 1px 2px rgba(63, 54, 91, 0.06), 0 1px 3px rgba(63, 54, 91, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(63, 54, 91, 0.1), 0 2px 4px rgba(63, 54, 91, 0.06);
+  --shadow-pop: 0 12px 32px rgba(63, 54, 91, 0.16);
 }
 
 @theme inline {
@@ -17,6 +23,8 @@
   --color-primary-hover: #332c4a;
   --color-secondary: #d8d1f1;
   --color-surface: #ece8f6;
+  --color-surface-2: #e2dcf1;
+  --color-border: #e5dff3;
   --color-ink: #2a2a2a;
 
   /* Derivados de la marca para jerarquía de texto — tonos morado-gris en
@@ -24,6 +32,15 @@
      parte de la misma paleta. */
   --color-muted: #6e6480;
   --color-muted-light: #9c93ac;
+
+  /* Colores de estado (buena / mala / atención) — afinados para convivir
+     con el morado de marca sin verse fluorescentes. */
+  --color-positive: #1f8a5b;
+  --color-positive-surface: #e4f4ec;
+  --color-negative: #c8453f;
+  --color-negative-surface: #fbe9e8;
+  --color-warning: #b06f1e;
+  --color-warning-surface: #fbf0e0;
 }
 
 body {
@@ -31,13 +48,42 @@ body {
   color: var(--foreground);
 }
 
-/* recharts renders its axis/label text with the browser default sans-serif,
-   which visually clashes with Geist used everywhere else in the app. */
-.recharts-text,
-.recharts-cartesian-axis-tick-value {
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+/* Fondo con un degradado muy sutil para que la superficie no se vea muerta;
+   dos manchas de color de marca fijas al viewport, casi imperceptibles. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 60rem at 100% 0%, rgba(216, 209, 241, 0.35), transparent 60%),
+    radial-gradient(50rem 50rem at 0% 100%, rgba(216, 209, 241, 0.25), transparent 55%);
 }
 
-.recharts-surface {
-  overflow: visible;
+/* Placeholder de carga con brillo animado. */
+@utility skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface) 25%,
+    var(--color-surface-2) 37%,
+    var(--color-surface) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
 }

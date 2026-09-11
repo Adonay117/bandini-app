@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
-import { Loading } from '@/components/ui/Loading';
+import { ChevronLeft } from 'lucide-react';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { ReportarMermaForm } from '@/components/forms/ReportarMermaForm';
 import { Producto } from '@/lib/types';
 
@@ -36,18 +36,34 @@ export default function MermaProductoPage() {
     };
   }, [params.id]);
 
-  if (loading) return <Loading label="Cargando producto…" />;
-  if (error) return <p className="text-sm text-red-600">{error}</p>;
+  if (loading && !producto) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-96 max-w-lg rounded-2xl" />
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="rounded-xl border border-negative-surface bg-negative-surface/40 p-4 text-sm text-negative">
+        {error}
+      </div>
+    );
+  }
   if (!producto) return null;
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href={`/productos/${producto.id}`} className="mb-2 flex items-center gap-1.5 text-sm text-muted hover:text-ink">
-          <ArrowLeft size={15} /> Volver al producto
+        <Link
+          href={`/productos/${producto.id}`}
+          className="inline-flex w-fit items-center gap-1 text-sm text-muted transition-colors hover:text-ink"
+        >
+          <ChevronLeft size={15} /> {producto.nombre}
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">{producto.nombre}</h1>
-        <p className="mt-1 text-sm text-muted">Reportar producto dañado.</p>
+        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-ink">Reportar producto dañado</h1>
       </div>
       <ReportarMermaForm producto={producto} onReportada={setProducto} />
     </div>

@@ -1,27 +1,42 @@
 import { Cliente } from '@/lib/types';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
 
-export function ClienteCard({ cliente }: { cliente: Cliente }) {
+function Fila({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-secondary/70 bg-white p-6 shadow-sm">
-      <h3 className="mb-4 text-xs font-medium tracking-wide text-muted-light uppercase">Información</h3>
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-        <dt className="text-muted-light">Teléfono</dt>
-        <dd className="text-ink">{cliente.telefono}</dd>
-        <dt className="text-muted-light">Email</dt>
-        <dd className="text-ink">{cliente.email ?? '—'}</dd>
-        <dt className="text-muted-light">Ubicación</dt>
-        <dd className="text-ink">
-          {[cliente.lugar, cliente.departamento].filter(Boolean).join(', ') || '—'}
-        </dd>
-        <dt className="text-muted-light">Registrado</dt>
-        <dd className="text-ink">{formatDate(cliente.fecha_registro)}</dd>
-        <dt className="text-muted-light">Total gastado</dt>
-        <dd className="text-ink">{formatCurrency(cliente.total_moneda_gastada)}</dd>
-        <dt className="text-muted-light">Tarjetas completadas</dt>
-        <dd className="text-ink">{cliente.total_tarjetas_completadas}</dd>
-        <dt className="text-muted-light">Premios ganados</dt>
-        <dd className="text-ink">{cliente.total_premios_ganados}</dd>
+    <div className="flex items-baseline justify-between gap-4 border-b border-border py-2.5 last:border-0">
+      <dt className="shrink-0 text-xs text-muted-light">{label}</dt>
+      <dd className="min-w-0 truncate text-right text-sm text-ink">{children}</dd>
+    </div>
+  );
+}
+
+export function ClienteCard({ cliente }: { cliente: Cliente }) {
+  const ubicacion = [cliente.lugar, cliente.departamento].filter(Boolean).join(', ');
+  const telDigits = cliente.telefono.replace(/\D/g, '');
+
+  return (
+    <div className="rounded-2xl border border-border bg-white p-5 shadow-[var(--shadow-card)] sm:p-6">
+      <h3 className="mb-2 text-sm font-semibold text-ink">Contacto</h3>
+      <dl>
+        <Fila label="Teléfono">
+          <a href={`tel:${telDigits}`} className="text-primary hover:underline">
+            {cliente.telefono}
+          </a>
+        </Fila>
+        <Fila label="Email">
+          {cliente.email ? (
+            <a href={`mailto:${cliente.email}`} className="text-primary hover:underline">
+              {cliente.email}
+            </a>
+          ) : (
+            '—'
+          )}
+        </Fila>
+        <Fila label="Cumpleaños">{cliente.fecha_nacimiento ? formatDate(cliente.fecha_nacimiento) : '—'}</Fila>
+        <Fila label="Ubicación">{ubicacion || '—'}</Fila>
+        <Fila label="Registrado">{formatDate(cliente.fecha_registro)}</Fila>
+        <Fila label="Saldo a favor">{formatCurrency(cliente.saldo_favor)}</Fila>
+        <Fila label="Notificaciones">{cliente.acepta_notificaciones ? 'Activadas' : 'Desactivadas'}</Fila>
       </dl>
     </div>
   );

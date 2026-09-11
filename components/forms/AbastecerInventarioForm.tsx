@@ -4,11 +4,9 @@ import { FormEvent, useState } from 'react';
 import { PackagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { Pagination } from '@/components/ui/Pagination';
-import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
-import { MovimientoInventario, Producto } from '@/lib/types';
-import { formatCurrency, formatDate } from '@/lib/utils/formatters';
+import { MovimientosList } from '@/components/productos/MovimientosList';
+import { Producto } from '@/lib/types';
+import { formatCurrency } from '@/lib/utils/formatters';
 
 export function AbastecerInventarioForm({
   producto,
@@ -22,21 +20,7 @@ export function AbastecerInventarioForm({
   const [nota, setNota] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [tipoFiltro, setTipoFiltro] = useState('');
-  const {
-    items: movimientos,
-    total,
-    totalPages,
-    page,
-    setPage,
-    loading: loadingMovimientos,
-    refetch: recargarMovimientos,
-  } = usePaginatedList<MovimientoInventario>(
-    `/api/productos/${producto.id}/movimientos`,
-    tipoFiltro ? { tipo: tipoFiltro } : {},
-    10
-  );
+  const [reloadKey, setReloadKey] = useState(0);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -60,7 +44,7 @@ export function AbastecerInventarioForm({
       setCostoUnitario('');
       setNota('');
       onAbastecido(productoActualizado);
-      recargarMovimientos();
+      setReloadKey((k) => k + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al registrar la entrada');
     } finally {
@@ -68,12 +52,15 @@ export function AbastecerInventarioForm({
     }
   }
 
+  const costoCambia = costoUnitario.trim() !== '' && Number(costoUnitario) !== producto.precio_costo;
+
   return (
-    <div className="flex max-w-lg flex-col gap-4 rounded-2xl border border-secondary/70 bg-white p-6 shadow-sm">
+    <div className="flex max-w-lg flex-col gap-4 rounded-2xl border border-border bg-white p-6 shadow-[var(--shadow-card)]">
       <div>
-        <h2 className="text-xs font-medium tracking-wide text-muted-light uppercase">Abastecer inventario</h2>
+        <h2 className="text-sm font-semibold text-ink">Abastecer inventario</h2>
         <p className="mt-1 text-sm text-muted">
-          Stock actual: {producto.stock_actual} · Costo actual: {formatCurrency(producto.precio_costo)}
+          Stock actual <span className="font-medium text-ink tabular-nums">{producto.stock_actual}</span> · costo actual{' '}
+          <span className="font-medium text-ink">{formatCurrency(producto.precio_costo)}</span>
         </p>
       </div>
 
@@ -102,56 +89,21 @@ export function AbastecerInventarioForm({
           value={nota}
           onChange={(e) => setNota(e.target.value)}
         />
-        {costoUnitario.trim() !== '' && Number(costoUnitario) !== producto.precio_costo && (
-          <p className="text-xs text-amber-600">
-            El costo del producto se actualizará de {formatCurrency(producto.precio_costo)} a{' '}
+        {costoCambia && (
+          <p className="text-xs text-warning">
+            El costo del producto pasará de {formatCurrency(producto.precio_costo)} a{' '}
             {formatCurrency(Number(costoUnitario))}.
           </p>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-negative">{error}</p>}
         <Button type="submit" disabled={!(Number(cantidad) > 0) || enviando} className="w-fit">
           <PackagePlus size={15} /> {enviando ? 'Registrando…' : 'Registrar entrada'}
         </Button>
       </form>
 
-      <div className="border-t border-secondary/60 pt-4">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-xs font-medium tracking-wide text-muted-light uppercase">Historial de movimientos</p>
-          <Select value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)} className="w-auto">
-            <option value="">Todos</option>
-            <option value="entrada">Entradas</option>
-            <option value="salida">Salidas</option>
-          </Select>
-        </div>
-        {loadingMovimientos && movimientos.length === 0 ? (
-          <p className="text-sm text-muted-light">Cargando…</p>
-        ) : movimientos.length === 0 ? (
-          <p className="text-sm text-muted-light">Sin movimientos registrados.</p>
-        ) : (
-          <>
-            <ul className="flex flex-col gap-2 text-sm">
-              {movimientos.map((m) => (
-                <li
-                  key={m.id}
-                  className="flex items-center justify-between border-b border-secondary/60 pb-2 last:border-0 last:pb-0"
-                >
-                  <span className={`font-medium ${m.tipo === 'entrada' ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {m.tipo === 'entrada' ? '+' : '-'}
-                    {m.cantidad}
-                    {m.costo_unitario != null && (
-                      <span className="ml-1.5 font-normal text-muted-light">· {formatCurrency(m.costo_unitario)} c/u</span>
-                    )}
-                    {m.nota && <span className="ml-1.5 font-normal text-muted-light">· {m.nota}</span>}
-                  </span>
-                  <span className="text-xs text-muted-light">{formatDate(m.fecha)}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-3">
-              <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
-            </div>
-          </>
-        )}
+      <div className="border-t border-border pt-4">
+        <p className="mb-1 text-sm font-semibold text-ink">Historial de movimientos</p>
+        <MovimientosList productoId={producto.id} showTipoFilter reloadKey={reloadKey} />
       </div>
     </div>
   );

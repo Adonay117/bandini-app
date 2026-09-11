@@ -1,67 +1,117 @@
 'use client';
 
 import { useState } from 'react';
-import { Users, Receipt, PackageX, Bell } from 'lucide-react';
-import { KPICard } from '@/components/cards/KPICard';
-import { VentasVsAbonosChart } from '@/components/charts/VentasVsAbonosChart';
-import { IngresosEgresosChart } from '@/components/charts/IngresosEgresosChart';
-import { TopProductosChart } from '@/components/charts/TopProductosChart';
+import Link from 'next/link';
+import { Bell, PackageX, ShoppingCart, Users, Wallet } from 'lucide-react';
+import { BalanceHero } from '@/components/dashboard/BalanceHero';
+import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
+import { MetricCard } from '@/components/dashboard/MetricCard';
+import { ComposicionIngresoChart } from '@/components/charts/ComposicionIngresoChart';
+import { FlujoMensualChart } from '@/components/charts/FlujoMensualChart';
 import { MonthYearFilter } from '@/components/charts/MonthYearFilter';
-import { Loading } from '@/components/ui/Loading';
-import { useClientes } from '@/lib/hooks/useClientes';
-import { useNotificacionesAdmin } from '@/lib/hooks/useNotificacionesAdmin';
-import { useProductos } from '@/lib/hooks/useProductos';
-import { useTransacciones } from '@/lib/hooks/useTransacciones';
-import { useVentas } from '@/lib/hooks/useVentas';
+import { TopProductosChart } from '@/components/charts/TopProductosChart';
+import { useDashboard } from '@/lib/hooks/useDashboard';
 import { formatCurrency } from '@/lib/utils/formatters';
-import { mesActual } from '@/lib/utils/charts';
+import { formatMesLargo, mesActual } from '@/lib/utils/charts';
+
+function deltaRelativo(actual: number, previo: number): number | null {
+  if (!previo) return null;
+  return (actual - previo) / previo;
+}
 
 export default function DashboardPage() {
   const [mes, setMes] = useState(mesActual);
+  const { data, loading, error } = useDashboard(mes);
 
-  const { clientes, loading: loadingClientes } = useClientes();
-  const { productos, loading: loadingProductos } = useProductos();
-  const { ventas, loading: loadingVentas } = useVentas();
-  const { transacciones, loading: loadingTransacciones } = useTransacciones();
-  const { notificaciones, loading: loadingNotificaciones } = useNotificacionesAdmin();
+  if (error && !data) {
+    return (
+      <div className="rounded-2xl border border-negative-surface bg-negative-surface/50 p-6 text-sm text-negative">
+        {error}
+      </div>
+    );
+  }
 
-  const loading = loadingClientes || loadingProductos || loadingVentas || loadingTransacciones || loadingNotificaciones;
+  if (!data) return <DashboardSkeleton />;
 
-  if (loading) return <Loading label="Cargando dashboard…" />;
-
-  const totalVentas = ventas.reduce((sum, v) => sum + v.total, 0);
-  const productosStockBajo = productos.filter((p) => p.stock_actual <= p.stock_minimo).length;
+  const k = data.kpis;
+  const mesLabel = formatMesLargo(mes);
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">Dashboard</h1>
-        <p className="mt-1 text-sm text-muted">Resumen general del negocio.</p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KPICard label="Clientes activos" value={clientes.length} icon={Users} />
-        <KPICard label="Ventas totales" value={formatCurrency(totalVentas)} hint={`${ventas.length} ventas`} icon={Receipt} />
-        <KPICard
-          label="Stock bajo"
-          value={productosStockBajo}
-          hint={`de ${productos.length} productos`}
-          icon={PackageX}
-          href="/productos?stock_bajo=1"
-          alerta={productosStockBajo > 0}
-        />
-        <KPICard label="Notificaciones" value={notificaciones.length} hint="pendientes" icon={Bell} />
-      </div>
-
-      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-sm font-medium text-muted">Actividad financiera</h2>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">Resumen</h1>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+            <span>{mesLabel}</span>
+            {k.notificacionesPendientes > 0 && (
+              <>
+                <span className="text-muted-light">·</span>
+                <Link href="/notificaciones" className="font-medium text-primary hover:underline">
+                  {k.notificacionesPendientes} notificación{k.notificacionesPendientes === 1 ? '' : 'es'} pendiente
+                  {k.notificacionesPendientes === 1 ? '' : 's'}
+                </Link>
+              </>
+            )}
+          </p>
+        </div>
         <MonthYearFilter value={mes} onChange={setMes} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <VentasVsAbonosChart transacciones={transacciones} mes={mes} />
-        <TopProductosChart ventas={ventas} productos={productos} mes={mes} />
-        <IngresosEgresosChart transacciones={transacciones} mes={mes} />
+      <div
+        className={`flex flex-col gap-6 transition-opacity duration-200 ${loading ? 'pointer-events-none opacity-60' : 'opacity-100'}`}
+      >
+        <BalanceHero
+          mesLabel={mesLabel.toLowerCase()}
+          balance={k.balanceMes}
+          ingresos={k.ingresosMes}
+          egresos={k.egresosMes}
+          ventas={k.ventasMes.monto}
+        />
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            label="Ventas del mes"
+            value={formatCurrency(k.ventasMes.monto)}
+            hint={`${k.ventasMes.count} venta${k.ventasMes.count === 1 ? '' : 's'}`}
+            icon={ShoppingCart}
+            delta={deltaRelativo(k.ventasMes.monto, k.ventasMesPrev)}
+          />
+          <MetricCard
+            label="Clientes activos"
+            value={k.clientesActivos}
+            hint="con tarjeta de fidelidad"
+            icon={Users}
+          />
+          <MetricCard
+            label="Por cobrar"
+            value={formatCurrency(k.saldoPorCobrar)}
+            hint={`${k.pedidosActivos} pedido${k.pedidosActivos === 1 ? '' : 's'} en curso`}
+            icon={Wallet}
+            href="/pedidos"
+            tone={k.saldoPorCobrar > 0 ? 'warning' : 'default'}
+          />
+          <MetricCard
+            label="Stock bajo"
+            value={k.stockBajo}
+            hint={`de ${k.productosActivos} producto${k.productosActivos === 1 ? '' : 's'}`}
+            icon={k.stockBajo > 0 ? PackageX : Bell}
+            href="/productos?stock_bajo=1"
+            tone={k.stockBajo > 0 ? 'negative' : 'default'}
+          />
+        </div>
+
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          <FlujoMensualChart
+            mes={mes}
+            mesLabel={mesLabel}
+            dias={data.dias}
+            totalIngresos={k.ingresosMes}
+            totalEgresos={k.egresosMes}
+          />
+          <ComposicionIngresoChart mes={mes} mesLabel={mesLabel} dias={data.dias} />
+        </div>
+
+        <TopProductosChart data={data.topProductos} mesLabel={mesLabel} />
       </div>
     </div>
   );

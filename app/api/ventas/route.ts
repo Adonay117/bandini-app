@@ -16,8 +16,11 @@ export async function GET(request: NextRequest) {
   const clienteId = params.get('cliente_id');
   const clienteNombre = params.get('cliente')?.trim();
   const productoNombre = params.get('producto')?.trim();
+  const search = params.get('search')?.trim().replace(/[,()]/g, '');
   const metodoPago = params.get('metodo_pago');
   const fecha = params.get('fecha');
+  const desde = params.get('desde');
+  const hasta = params.get('hasta');
   const paginado = params.has('page');
 
   const supabase = createSupabaseAdminClient();
@@ -25,41 +28,76 @@ export async function GET(request: NextRequest) {
   function respuestaVacia() {
     if (!paginado) return NextResponse.json([]);
     const { page, pageSize } = parsePaginacion(params);
-    return NextResponse.json({ data: [], total: 0, page, pageSize });
+    return NextResponse.json({ data: [], total: 0, page, pageSize, resumen: { totalMonto: 0, unidades: 0 } });
+  }
+
+  async function idsPorNombre(tabla: 'clientes' | 'productos', nombre: string) {
+    const { data } = await supabase.from(tabla).select('id').ilike('nombre', `%${nombre}%`);
+    return (data ?? []).map((r) => r.id as string);
   }
 
   let clienteIds: string[] | null = null;
   if (clienteNombre) {
-    const { data, error } = await supabase.from('clientes').select('id').ilike('nombre', `%${clienteNombre}%`);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    clienteIds = (data ?? []).map((c) => c.id);
+    clienteIds = await idsPorNombre('clientes', clienteNombre);
     if (clienteIds.length === 0) return respuestaVacia();
   }
 
   let productoIds: string[] | null = null;
   if (productoNombre) {
-    const { data, error } = await supabase.from('productos').select('id').ilike('nombre', `%${productoNombre}%`);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    productoIds = (data ?? []).map((p) => p.id);
+    productoIds = await idsPorNombre('productos', productoNombre);
     if (productoIds.length === 0) return respuestaVacia();
   }
 
-  let query = supabase
-    .from('ventas')
-    .select('*, cliente:clientes(nombre), producto:productos(nombre)', paginado ? { count: 'exact' } : undefined)
-    .order('fecha', { ascending: false });
+  // Búsqueda unificada: coincide por nombre de cliente O de producto.
+  let searchOr: string | null = null;
+  if (search) {
+    const [cli, prod] = await Promise.all([idsPorNombre('clientes', search), idsPorNombre('productos', search)]);
+    if (cli.length === 0 && prod.length === 0) return respuestaVacia();
+    const partes: string[] = [];
+    if (cli.length) partes.push(`cliente_id.in.(${cli.join(',')})`);
+    if (prod.length) partes.push(`producto_id.in.(${prod.join(',')})`);
+    searchOr = partes.join(',');
+  }
 
-  if (clienteId) query = query.eq('cliente_id', clienteId);
-  if (clienteIds) query = query.in('cliente_id', clienteIds);
-  if (productoIds) query = query.in('producto_id', productoIds);
-  if (metodoPago) query = query.eq('metodo_pago', metodoPago);
-  if (fecha) query = query.gte('fecha', `${fecha}T00:00:00`).lte('fecha', `${fecha}T23:59:59.999`);
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const aplicarFiltros = (query: any): any => {
+    let q = query;
+    if (clienteId) q = q.eq('cliente_id', clienteId);
+    if (clienteIds) q = q.in('cliente_id', clienteIds);
+    if (productoIds) q = q.in('producto_id', productoIds);
+    if (searchOr) q = q.or(searchOr);
+    if (metodoPago) q = q.eq('metodo_pago', metodoPago);
+    if (fecha) q = q.gte('fecha', `${fecha}T00:00:00`).lte('fecha', `${fecha}T23:59:59.999`);
+    if (desde) q = q.gte('fecha', `${desde}T00:00:00`);
+    if (hasta) q = q.lte('fecha', `${hasta}T23:59:59.999`);
+    return q;
+  };
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
+  const query = aplicarFiltros(
+    supabase
+      .from('ventas')
+      .select('*, cliente:clientes(nombre), producto:productos(nombre)', paginado ? { count: 'exact' } : undefined)
+      .order('fecha', { ascending: false })
+  );
 
   if (paginado) {
     const { page, pageSize, from, to } = parsePaginacion(params);
-    const { data, error, count } = await query.range(from, to);
+    const [{ data, error, count }, { data: todas, error: totalesError }] = await Promise.all([
+      query.range(from, to),
+      aplicarFiltros(supabase.from('ventas').select('total, cantidad')),
+    ]);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: (data ?? []).map(mapVenta), total: count ?? 0, page, pageSize });
+    if (totalesError) return NextResponse.json({ error: totalesError.message }, { status: 500 });
+    const resumen = (todas ?? []).reduce(
+      (acc: { totalMonto: number; unidades: number }, v: { total: number; cantidad: number }) => {
+        acc.totalMonto += Number(v.total);
+        acc.unidades += v.cantidad;
+        return acc;
+      },
+      { totalMonto: 0, unidades: 0 }
+    );
+    return NextResponse.json({ data: (data ?? []).map(mapVenta), total: count ?? 0, page, pageSize, resumen });
   }
 
   const { data, error } = await query;

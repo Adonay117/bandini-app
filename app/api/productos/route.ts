@@ -26,16 +26,34 @@ export async function GET(request: NextRequest) {
     query = query.eq('activo', activo === '1');
   }
 
-  // Cuenta de stock bajo con los mismos filtros de búsqueda/categoría/estado
-  // pero SIN el toggle de stock_bajo ni paginación: sirve para el aviso
-  // "N productos con stock bajo" aunque el filtro no esté activo todavía.
-  async function contarStockBajo() {
-    let q = supabase.from('productos').select('stock_actual, stock_minimo');
+  // Resumen con los mismos filtros de búsqueda/categoría/estado pero SIN el
+  // toggle de stock_bajo ni paginación: alimenta los indicadores del
+  // encabezado (stock bajo, valor de inventario, activos/inactivos).
+  async function calcularResumen() {
+    let q = supabase.from('productos').select('activo, stock_actual, stock_minimo, precio_costo');
     if (search) q = q.or(`nombre.ilike.%${search}%,sku.ilike.%${search}%`);
     if (categoria) q = q.ilike('categoria', `%${categoria}%`);
     if (activo === '1' || activo === '0') q = q.eq('activo', activo === '1');
     const { data } = await q;
-    return (data ?? []).filter((p) => p.stock_actual <= p.stock_minimo).length;
+    const filas = data ?? [];
+    return {
+      stockBajoCount: filas.filter((p) => p.stock_actual <= p.stock_minimo).length,
+      resumen: {
+        activos: filas.filter((p) => p.activo).length,
+        inactivos: filas.filter((p) => !p.activo).length,
+        valorInventario: filas
+          .filter((p) => p.activo)
+          .reduce((s, p) => s + p.stock_actual * Number(p.precio_costo), 0),
+      },
+    };
+  }
+
+  // Categorías existentes (sin filtro) para el selector de la lista.
+  async function listarCategorias() {
+    const { data } = await supabase.from('productos').select('categoria').not('categoria', 'is', null);
+    return [...new Set((data ?? []).map((p) => p.categoria as string).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b, 'es')
+    );
   }
 
   // stock_actual <= stock_minimo compara dos columnas entre sí, algo que el
@@ -58,9 +76,20 @@ export async function GET(request: NextRequest) {
 
   if (paginado) {
     const { page, pageSize, from, to } = parsePaginacion(params);
-    const [{ data, error, count }, stockBajoCount] = await Promise.all([query.range(from, to), contarStockBajo()]);
+    const [{ data, error, count }, { stockBajoCount, resumen }, categorias] = await Promise.all([
+      query.range(from, to),
+      calcularResumen(),
+      listarCategorias(),
+    ]);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: data ?? [], total: count ?? 0, page, pageSize, stockBajoCount });
+    return NextResponse.json({
+      data: data ?? [],
+      total: count ?? 0,
+      page,
+      pageSize,
+      stockBajoCount,
+      resumen: { ...resumen, categorias },
+    });
   }
 
   const { data, error } = await query;

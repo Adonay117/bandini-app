@@ -7,7 +7,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   const { data: pedido, error: pedidoError } = await supabase
     .from('pedidos')
-    .select('*, cliente:clientes(nombre, lugar)')
+    .select('*, cliente:clientes(nombre, lugar, telefono, saldo_favor)')
     .eq('id', id)
     .single();
 
@@ -32,6 +32,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     ...pedidoBase,
     cliente_nombre: cliente?.nombre ?? null,
     cliente_lugar: cliente?.lugar ?? null,
+    cliente_telefono: cliente?.telefono ?? null,
+    cliente_saldo_favor: cliente?.saldo_favor ?? 0,
     items: items ?? [],
     abonos: abonos ?? [],
   });

@@ -5,10 +5,9 @@ import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Pagination } from '@/components/ui/Pagination';
-import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
-import { MotivoMerma, MovimientoInventario, Producto } from '@/lib/types';
-import { formatCurrency, formatDate } from '@/lib/utils/formatters';
+import { MovimientosList } from '@/components/productos/MovimientosList';
+import { MotivoMerma, Producto } from '@/lib/types';
+import { formatCurrency } from '@/lib/utils/formatters';
 
 const MOTIVO_LABEL: Record<MotivoMerma, string> = {
   danado: 'Dañado',
@@ -29,16 +28,7 @@ export function ReportarMermaForm({
   const [nota, setNota] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const {
-    items: movimientos,
-    total,
-    totalPages,
-    page,
-    setPage,
-    loading: loadingMovimientos,
-    refetch: recargarMovimientos,
-  } = usePaginatedList<MovimientoInventario>(`/api/productos/${producto.id}/movimientos`, { motivo: 'merma' }, 10);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const cantidadValida = Number(cantidad) > 0 && Number(cantidad) <= producto.stock_actual;
   const valorPerdido = Number(cantidad) > 0 ? Number(cantidad) * producto.precio_costo : 0;
@@ -60,7 +50,7 @@ export function ReportarMermaForm({
       setCantidad('');
       setNota('');
       onReportada(productoActualizado);
-      recargarMovimientos();
+      setReloadKey((k) => k + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al reportar la merma');
     } finally {
@@ -69,10 +59,12 @@ export function ReportarMermaForm({
   }
 
   return (
-    <div className="flex max-w-lg flex-col gap-4 rounded-2xl border border-secondary/70 bg-white p-6 shadow-sm">
+    <div className="flex max-w-lg flex-col gap-4 rounded-2xl border border-border bg-white p-6 shadow-[var(--shadow-card)]">
       <div>
-        <h2 className="text-xs font-medium tracking-wide text-muted-light uppercase">Reportar producto dañado</h2>
-        <p className="mt-1 text-sm text-muted">Stock actual: {producto.stock_actual}</p>
+        <h2 className="text-sm font-semibold text-ink">Reportar producto dañado</h2>
+        <p className="mt-1 text-sm text-muted">
+          Stock actual <span className="font-medium text-ink tabular-nums">{producto.stock_actual}</span>
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -100,47 +92,27 @@ export function ReportarMermaForm({
           onChange={(e) => setNota(e.target.value)}
         />
         {Number(cantidad) > producto.stock_actual && (
-          <p className="text-xs text-red-600">No puede ser mayor al stock actual ({producto.stock_actual}).</p>
+          <p className="text-xs text-negative">No puede ser mayor al stock actual ({producto.stock_actual}).</p>
         )}
         {valorPerdido > 0 && (
-          <p className="flex items-center gap-1.5 text-xs text-amber-600">
+          <p className="flex items-center gap-1.5 text-xs text-warning">
             <AlertTriangle size={13} /> Se registrará un egreso de {formatCurrency(valorPerdido)} por el costo perdido.
           </p>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-negative">{error}</p>}
         <Button type="submit" variant="secondary" disabled={!cantidadValida || enviando} className="w-fit">
           <AlertTriangle size={15} /> {enviando ? 'Reportando…' : 'Reportar merma'}
         </Button>
       </form>
 
-      <div className="border-t border-secondary/60 pt-4">
-        <p className="mb-2 text-xs font-medium tracking-wide text-muted-light uppercase">Historial de mermas</p>
-        {loadingMovimientos && movimientos.length === 0 ? (
-          <p className="text-sm text-muted-light">Cargando…</p>
-        ) : movimientos.length === 0 ? (
-          <p className="text-sm text-muted-light">Sin mermas registradas.</p>
-        ) : (
-          <>
-            <ul className="flex flex-col gap-2 text-sm">
-              {movimientos.map((m) => (
-                <li
-                  key={m.id}
-                  className="flex items-center justify-between border-b border-secondary/60 pb-2 last:border-0 last:pb-0"
-                >
-                  <span className="font-medium text-red-600">
-                    -{m.cantidad}
-                    {m.motivo && <span className="ml-1.5 font-normal text-muted-light">· {MOTIVO_LABEL[m.motivo]}</span>}
-                    {m.nota && <span className="ml-1.5 font-normal text-muted-light">· {m.nota}</span>}
-                  </span>
-                  <span className="text-xs text-muted-light">{formatDate(m.fecha)}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-3">
-              <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
-            </div>
-          </>
-        )}
+      <div className="border-t border-border pt-4">
+        <p className="mb-1 text-sm font-semibold text-ink">Historial de mermas</p>
+        <MovimientosList
+          productoId={producto.id}
+          soloMerma
+          reloadKey={reloadKey}
+          emptyLabel="Sin mermas registradas."
+        />
       </div>
     </div>
   );

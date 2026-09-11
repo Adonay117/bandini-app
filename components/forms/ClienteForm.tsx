@@ -61,7 +61,11 @@ export function ClienteForm({ cliente, onGuardado }: { cliente?: Cliente; onGuar
   return (
     <form
       onSubmit={handleSubmit}
-      className={editando ? 'flex flex-col gap-4' : 'flex max-w-lg flex-col gap-4 rounded-2xl border border-secondary/70 bg-white p-6 shadow-sm'}
+      className={
+        editando
+          ? 'flex flex-col gap-4'
+          : 'flex max-w-lg flex-col gap-4 rounded-2xl border border-border bg-white p-6 shadow-[var(--shadow-card)]'
+      }
     >
       <Input label="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
       <Input
@@ -101,7 +105,7 @@ export function ClienteForm({ cliente, onGuardado }: { cliente?: Cliente; onGuar
         />
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-negative">{error}</p>}
 
       <Button type="submit" disabled={!valido || submitting}>
         {submitting ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear cliente'}

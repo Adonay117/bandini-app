@@ -2,44 +2,46 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Filter } from 'lucide-react';
+import { ClipboardList, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { Loading } from '@/components/ui/Loading';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { StatTile } from '@/components/ui/StatTile';
 import { Pagination } from '@/components/ui/Pagination';
 import { PedidosTable } from '@/components/tables/PedidosTable';
 import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
-import { EstadoPedido, Pedido } from '@/lib/types';
+import { formatCurrency } from '@/lib/utils/formatters';
+import { ESTADOS_PEDIDO, ESTADO_PEDIDO } from '@/lib/utils/pedidos';
+import { Pedido } from '@/lib/types';
 
-const estados: EstadoPedido[] = ['cotizacion', 'confirmado', 'en_transito', 'entregado', 'completado'];
+interface ResumenPedidos {
+  porCobrar: number;
+  activos: number;
+}
 
 export default function PedidosPage() {
-  const [fecha, setFecha] = useState('');
-  const [cliente, setCliente] = useState('');
-  const [lugar, setLugar] = useState('');
+  const [search, setSearch] = useState('');
   const [estado, setEstado] = useState('');
 
   const params = useMemo(
     () => ({
-      ...(fecha && { fecha }),
-      ...(cliente.trim() && { cliente: cliente.trim() }),
-      ...(lugar.trim() && { lugar: lugar.trim() }),
+      ...(search.trim() && { search: search.trim() }),
       ...(estado && { estado }),
     }),
-    [fecha, cliente, lugar, estado]
+    [search, estado]
   );
 
-  const { items: pedidos, total, totalPages, page, setPage, loading, error } = usePaginatedList<Pedido>(
-    '/api/pedidos',
-    params
-  );
+  const { items: pedidos, total, totalPages, page, setPage, loading, error, extra } = usePaginatedList<
+    Pedido,
+    { resumen?: ResumenPedidos }
+  >('/api/pedidos', params);
 
-  const hayFiltros = fecha || cliente || lugar || estado;
+  const hayFiltros = Boolean(search || estado);
+  const resumen = extra.resumen;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">Pedidos</h1>
           <p className="mt-1 text-sm text-muted">Órdenes de Shein, Temu, Amazon y más.</p>
@@ -51,46 +53,82 @@ export default function PedidosPage() {
         </Link>
       </div>
 
-      <div className="rounded-2xl border border-secondary/70 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2 text-xs font-medium tracking-wide text-muted-light uppercase">
-          <Filter size={14} /> Filtros
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Input label="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-          <Input label="Cliente" placeholder="Nombre…" value={cliente} onChange={(e) => setCliente(e.target.value)} />
-          <Input label="Lugar" placeholder="Municipio/dirección…" value={lugar} onChange={(e) => setLugar(e.target.value)} />
-          <Select label="Estado" value={estado} onChange={(e) => setEstado(e.target.value)}>
-            <option value="">Todos</option>
-            {estados.map((e) => (
-              <option key={e} value={e}>
-                {e}
-              </option>
-            ))}
-          </Select>
-        </div>
+      <div className="grid grid-cols-3 gap-3">
+        <StatTile label={hayFiltros ? 'Resultados' : 'Total pedidos'} value={total} />
+        <StatTile label="En curso" value={resumen?.activos ?? '—'} hint="sin completar" />
+        <StatTile
+          label="Por cobrar"
+          value={resumen ? formatCurrency(resumen.porCobrar) : '—'}
+          tone={resumen && resumen.porCobrar > 0 ? 'warning' : 'default'}
+        />
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar por cliente o lugar…"
+          className="flex-1"
+        />
+        <select
+          value={estado}
+          onChange={(e) => setEstado(e.target.value)}
+          aria-label="Filtrar por estado"
+          className="min-h-11 rounded-xl border border-border bg-white px-3.5 text-sm text-ink outline-none transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/15 sm:w-48"
+        >
+          <option value="">Cualquier estado</option>
+          {ESTADOS_PEDIDO.map((e) => (
+            <option key={e} value={e}>
+              {ESTADO_PEDIDO[e].label}
+            </option>
+          ))}
+        </select>
         {hayFiltros && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             onClick={() => {
-              setFecha('');
-              setCliente('');
-              setLugar('');
+              setSearch('');
               setEstado('');
             }}
-            className="mt-3 text-xs font-medium text-primary hover:underline"
           >
-            Quitar filtros
-          </button>
+            Limpiar
+          </Button>
         )}
       </div>
 
-      {loading && pedidos.length === 0 && <Loading label="Cargando pedidos…" />}
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {!error && (pedidos.length > 0 || !loading) && (
-        <>
+      {error && (
+        <div role="alert" className="rounded-xl border border-negative-surface bg-negative-surface/40 p-4 text-sm text-negative">
+          {error}
+        </div>
+      )}
+
+      {loading && pedidos.length === 0 ? (
+        <ul className="flex flex-col gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <li key={i}>
+              <Skeleton className="h-[92px] rounded-xl" />
+            </li>
+          ))}
+        </ul>
+      ) : pedidos.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-surface text-muted-light">
+            <ClipboardList size={18} />
+          </span>
+          <p className="text-sm text-muted">
+            {hayFiltros ? 'Ningún pedido coincide con los filtros.' : 'Todavía no hay pedidos registrados.'}
+          </p>
+          <Link href="/pedidos/nuevo">
+            <Button variant="secondary">
+              <Plus size={16} /> Crear un pedido
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <div className={`flex flex-col gap-4 transition-opacity ${loading ? 'opacity-60' : 'opacity-100'}`}>
           <PedidosTable pedidos={pedidos} />
           <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
-        </>
+        </div>
       )}
     </div>
   );

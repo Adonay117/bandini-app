@@ -10,7 +10,7 @@ import { useProductos } from '@/lib/hooks/useProductos';
 import { Producto } from '@/lib/types';
 import { comprimirImagen } from '@/lib/utils/image';
 
-export function ProductoForm({ producto }: { producto?: Producto }) {
+export function ProductoForm({ producto, onGuardado }: { producto?: Producto; onGuardado?: () => void }) {
   const router = useRouter();
   const { crearProducto, actualizarProducto } = useProductos();
   const editando = producto !== undefined;
@@ -90,6 +90,7 @@ export function ProductoForm({ producto }: { producto?: Producto }) {
         await actualizarProducto(producto.id, { ...payload, activo });
         setExito(true);
         setTimeout(() => setExito(false), 2000);
+        onGuardado?.();
       } else {
         await crearProducto({ ...payload, stock_actual: Number(stockActual) });
         router.push('/productos');
@@ -102,11 +103,11 @@ export function ProductoForm({ producto }: { producto?: Producto }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex max-w-lg flex-col gap-4 rounded-2xl border border-secondary/70 bg-white p-6 shadow-sm">
+    <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4 rounded-2xl border border-border bg-white p-6 shadow-[var(--shadow-card)]">
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium text-muted">Imagen</label>
         <div className="flex items-center gap-3">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-secondary bg-surface">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface">
             {subiendoImagen ? (
               <Loader2 size={18} className="animate-spin text-muted-light" />
             ) : imagenUrl ? (
@@ -131,7 +132,7 @@ export function ProductoForm({ producto }: { producto?: Producto }) {
               <button
                 type="button"
                 onClick={() => setImagenUrl('')}
-                className="flex items-center gap-1 text-xs text-muted-light hover:text-red-600"
+                className="flex items-center gap-1 text-xs text-muted-light hover:text-negative"
               >
                 <X size={12} /> Quitar imagen
               </button>
@@ -167,10 +168,10 @@ export function ProductoForm({ producto }: { producto?: Producto }) {
         {editando ? (
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted">Stock actual</label>
-            <p className="rounded-lg border border-secondary bg-surface px-3 py-2 text-sm text-ink">
+            <p className="rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-ink tabular-nums">
               {producto.stock_actual}
             </p>
-            <p className="text-xs text-muted-light">Usa &quot;Abastecer inventario&quot; abajo para agregar stock.</p>
+            <p className="text-xs text-muted-light">Se cambia desde &quot;Abastecer&quot; o &quot;Dañado&quot;.</p>
           </div>
         ) : (
           <Input
@@ -197,9 +198,9 @@ export function ProductoForm({ producto }: { producto?: Producto }) {
         </label>
       )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-negative">{error}</p>}
       {exito && (
-        <p className="flex items-center gap-1.5 text-sm text-emerald-600">
+        <p className="flex items-center gap-1.5 text-sm text-positive">
           <Check size={15} /> Cambios guardados.
         </p>
       )}
