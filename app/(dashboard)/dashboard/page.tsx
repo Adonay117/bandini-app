@@ -9,10 +9,12 @@ import { MetricCard } from '@/components/dashboard/MetricCard';
 import { ComposicionIngresoChart } from '@/components/charts/ComposicionIngresoChart';
 import { FlujoMensualChart } from '@/components/charts/FlujoMensualChart';
 import { MonthYearFilter } from '@/components/charts/MonthYearFilter';
+import { PlataformasChart } from '@/components/charts/PlataformasChart';
 import { TopProductosChart } from '@/components/charts/TopProductosChart';
 import { useDashboard } from '@/lib/hooks/useDashboard';
+import { usePlataformasDashboard } from '@/lib/hooks/usePlataformasDashboard';
 import { formatCurrency } from '@/lib/utils/formatters';
-import { formatMesLargo, mesActual } from '@/lib/utils/charts';
+import { anioActual, formatMesLargo, mesActual } from '@/lib/utils/charts';
 
 function deltaRelativo(actual: number, previo: number): number | null {
   if (!previo) return null;
@@ -22,6 +24,9 @@ function deltaRelativo(actual: number, previo: number): number | null {
 export default function DashboardPage() {
   const [mes, setMes] = useState(mesActual);
   const { data, loading, error } = useDashboard(mes);
+
+  const [anioPlataformas, setAnioPlataformas] = useState(anioActual);
+  const { data: dataPlataformas } = usePlataformasDashboard(anioPlataformas);
 
   if (error && !data) {
     return (
@@ -99,6 +104,15 @@ export default function DashboardPage() {
             tone={k.stockBajo > 0 ? 'negative' : 'default'}
           />
         </div>
+
+        {dataPlataformas && (
+          <PlataformasChart
+            anio={anioPlataformas}
+            onCambiarAnio={setAnioPlataformas}
+            plataformas={dataPlataformas.plataformas}
+            datos={dataPlataformas.datos}
+          />
+        )}
 
         <div className="grid items-start gap-4 lg:grid-cols-2">
           <FlujoMensualChart

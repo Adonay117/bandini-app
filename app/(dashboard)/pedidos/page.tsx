@@ -12,7 +12,7 @@ import { PedidosTable } from '@/components/tables/PedidosTable';
 import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { ESTADOS_PEDIDO, ESTADO_PEDIDO } from '@/lib/utils/pedidos';
-import { Pedido } from '@/lib/types';
+import { EstadoPedido, Pedido } from '@/lib/types';
 
 interface ResumenPedidos {
   porCobrar: number;
@@ -22,6 +22,7 @@ interface ResumenPedidos {
 export default function PedidosPage() {
   const [search, setSearch] = useState('');
   const [estado, setEstado] = useState('');
+  const [cambioEstadoError, setCambioEstadoError] = useState<string | null>(null);
 
   const params = useMemo(
     () => ({
@@ -31,13 +32,28 @@ export default function PedidosPage() {
     [search, estado]
   );
 
-  const { items: pedidos, total, totalPages, page, setPage, loading, error, extra } = usePaginatedList<
+  const { items: pedidos, total, totalPages, page, setPage, loading, error, refetch, extra } = usePaginatedList<
     Pedido,
     { resumen?: ResumenPedidos }
   >('/api/pedidos', params);
 
   const hayFiltros = Boolean(search || estado);
   const resumen = extra.resumen;
+
+  async function cambiarEstado(id: string, nuevoEstado: EstadoPedido) {
+    setCambioEstadoError(null);
+    try {
+      const res = await fetch(`/api/pedidos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: nuevoEstado }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Error al cambiar estado');
+      refetch();
+    } catch (err) {
+      setCambioEstadoError(err instanceof Error ? err.message : 'Error al cambiar estado');
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -96,9 +112,9 @@ export default function PedidosPage() {
         )}
       </div>
 
-      {error && (
+      {(error || cambioEstadoError) && (
         <div role="alert" className="rounded-xl border border-negative-surface bg-negative-surface/40 p-4 text-sm text-negative">
-          {error}
+          {error || cambioEstadoError}
         </div>
       )}
 
@@ -126,7 +142,7 @@ export default function PedidosPage() {
         </div>
       ) : (
         <div className={`flex flex-col gap-4 transition-opacity ${loading ? 'opacity-60' : 'opacity-100'}`}>
-          <PedidosTable pedidos={pedidos} />
+          <PedidosTable pedidos={pedidos} onCambiarEstado={cambiarEstado} />
           <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
         </div>
       )}

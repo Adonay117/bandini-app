@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { ESTADOS_PEDIDO } from '@/lib/utils/pedidos';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -43,10 +44,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { id } = await params;
   const body = await request.json();
 
+  if (typeof body.estado !== 'string' || !ESTADOS_PEDIDO.includes(body.estado)) {
+    return NextResponse.json(
+      { error: `estado inválido. Debe ser uno de: ${ESTADOS_PEDIDO.join(', ')}` },
+      { status: 400 }
+    );
+  }
+
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from('pedidos')
-    .update(body)
+    .update({ estado: body.estado })
     .eq('id', id)
     .select()
     .single();

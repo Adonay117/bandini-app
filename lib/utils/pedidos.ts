@@ -46,3 +46,27 @@ export const ESTADO_PEDIDO_FRASE: Record<EstadoPedido, string> = {
   entregado: 'entregado',
   completado: 'completado',
 };
+
+// Determina si un cambio de estado necesita confirmación explícita: solo
+// cuando NO es el siguiente paso natural (retroceder o saltarse etapas
+// intermedias), para evitar toques accidentales. Un avance de un solo paso
+// no interrumpe con un diálogo. No confirma por sí misma: el llamador decide
+// cómo pedir esa confirmación (p.ej. con <PopConfirm>).
+export function evaluarCambioEstado(
+  actual: EstadoPedido,
+  destino: EstadoPedido
+): { requiereConfirmacion: boolean; mensaje: string } {
+  const indiceActual = ESTADOS_PEDIDO.indexOf(actual);
+  const indiceDestino = ESTADOS_PEDIDO.indexOf(destino);
+
+  if (indiceDestino === indiceActual + 1) {
+    return { requiereConfirmacion: false, mensaje: '' };
+  }
+
+  const mensaje =
+    indiceDestino < indiceActual
+      ? `¿Retroceder el pedido de "${ESTADO_PEDIDO[actual].label}" a "${ESTADO_PEDIDO[destino].label}"?`
+      : `Esto saltará etapas intermedias. ¿Cambiar el pedido a "${ESTADO_PEDIDO[destino].label}"?`;
+
+  return { requiereConfirmacion: true, mensaje };
+}
