@@ -27,11 +27,12 @@ function rangoMes(mes: string) {
   };
 }
 
-type ProductoVenta = { nombre?: string | null } | { nombre?: string | null }[] | null;
+type ProductoInfo = { nombre?: string | null; imagen_url?: string | null };
+type ProductoVenta = ProductoInfo | ProductoInfo[] | null;
 
-function nombreProducto(p: ProductoVenta): string {
-  if (Array.isArray(p)) return p[0]?.nombre ?? 'Producto eliminado';
-  return p?.nombre ?? 'Producto eliminado';
+function datosProducto(p: ProductoVenta): { nombre: string; imagen_url: string | null } {
+  const info = Array.isArray(p) ? p[0] : p;
+  return { nombre: info?.nombre ?? 'Producto eliminado', imagen_url: info?.imagen_url ?? null };
 }
 
 export async function GET(request: NextRequest) {
@@ -40,22 +41,24 @@ export async function GET(request: NextRequest) {
   const r = rangoMes(mes);
   const supabase = createSupabaseAdminClient();
 
-  const [txMes, txPrev, ventasMes, ventasPrev, clientes, productos, notificaciones, pedidos] = await Promise.all([
-    supabase.from('transacciones').select('tipo, categoria, monto, fecha').gte('fecha', r.desde).lte('fecha', r.hasta),
-    supabase.from('transacciones').select('tipo, monto').gte('fecha', r.desdePrev).lte('fecha', r.hastaPrev),
-    supabase
-      .from('ventas')
-      .select('producto_id, cantidad, total, producto:productos(nombre)')
-      .gte('fecha', r.desde)
-      .lte('fecha', r.hasta),
-    supabase.from('ventas').select('total').gte('fecha', r.desdePrev).lte('fecha', r.hastaPrev),
-    supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('activo', true),
-    supabase.from('productos').select('stock_actual, stock_minimo').eq('activo', true),
-    supabase.from('notificaciones_admin').select('*', { count: 'exact', head: true }).eq('visto', false),
-    supabase.from('pedidos').select('saldo_pendiente').neq('estado', 'completado'),
-  ]);
+  const [txMes, txPrev, ventasMes, ventasPrev, itemsVentasMes, clientes, productos, notificaciones, pedidos] =
+    await Promise.all([
+      supabase.from('transacciones').select('tipo, categoria, monto, fecha').gte('fecha', r.desde).lte('fecha', r.hasta),
+      supabase.from('transacciones').select('tipo, monto').gte('fecha', r.desdePrev).lte('fecha', r.hastaPrev),
+      supabase.from('ventas').select('total').gte('fecha', r.desde).lte('fecha', r.hasta),
+      supabase.from('ventas').select('total').gte('fecha', r.desdePrev).lte('fecha', r.hastaPrev),
+      supabase
+        .from('venta_items')
+        .select('producto_id, cantidad, total, producto:productos(nombre, imagen_url), venta:ventas!inner(fecha)')
+        .gte('venta.fecha', r.desde)
+        .lte('venta.fecha', r.hasta),
+      supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('activo', true),
+      supabase.from('productos').select('stock_actual, stock_minimo').eq('activo', true),
+      supabase.from('notificaciones_admin').select('*', { count: 'exact', head: true }).eq('visto', false),
+      supabase.from('pedidos').select('saldo_pendiente').neq('estado', 'completado'),
+    ]);
 
-  const conError = [txMes, txPrev, ventasMes, ventasPrev, clientes, productos, notificaciones, pedidos].find(
+  const conError = [txMes, txPrev, ventasMes, ventasPrev, itemsVentasMes, clientes, productos, notificaciones, pedidos].find(
     (res) => res.error
   );
   if (conError?.error) {
@@ -108,10 +111,14 @@ export async function GET(request: NextRequest) {
   const pedidosActivos = pedidos.data ?? [];
   const saldoPorCobrar = pedidosActivos.reduce((s, p) => s + Number(p.saldo_pendiente ?? 0), 0);
 
-  const acumProductos = new Map<string, { nombre: string; cantidad: number; total: number }>();
-  for (const v of ventasMes.data ?? []) {
+  const acumProductos = new Map<
+    string,
+    { producto_id: string; nombre: string; imagen_url: string | null; cantidad: number; total: number }
+  >();
+  for (const v of itemsVentasMes.data ?? []) {
     const actual = acumProductos.get(v.producto_id) ?? {
-      nombre: nombreProducto(v.producto as ProductoVenta),
+      producto_id: v.producto_id,
+      ...datosProducto(v.producto as ProductoVenta),
       cantidad: 0,
       total: 0,
     };
@@ -119,7 +126,7 @@ export async function GET(request: NextRequest) {
     actual.total += Number(v.total);
     acumProductos.set(v.producto_id, actual);
   }
-  const topProductos = [...acumProductos.values()].sort((a, b) => b.cantidad - a.cantidad).slice(0, 5);
+  const topProductos = [...acumProductos.values()].sort((a, b) => b.cantidad - a.cantidad).slice(0, 10);
 
   return NextResponse.json({
     mes,

@@ -114,7 +114,6 @@ export function VentaForm() {
   }, [clienteSeleccionado, total]);
 
   const valido =
-    clienteSeleccionado !== null &&
     lineas.length > 0 &&
     lineas.every(
       (l) => l.cantidad >= 1 && l.cantidad <= l.producto.stock_actual && l.precioUnitario > 0 && l.total > 0
@@ -122,13 +121,13 @@ export function VentaForm() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!valido || !clienteSeleccionado) return;
+    if (!valido) return;
 
     setSubmitting(true);
     setError(null);
     try {
       await crearVenta({
-        cliente_id: clienteSeleccionado.id,
+        cliente_id: clienteSeleccionado?.id ?? null,
         metodo_pago: metodoPago,
         items: lineas.map((l) => ({
           producto_id: l.producto.id,
@@ -149,7 +148,7 @@ export function VentaForm() {
   return (
     <form onSubmit={handleSubmit} className="flex max-w-2xl flex-col gap-5">
       {/* Cliente */}
-      <Seccion title="¿Quién compra?">
+      <Seccion title="¿Quién compra? (opcional)">
         {clienteSeleccionado ? (
           <div className="flex items-center gap-3 rounded-xl border border-border bg-surface/60 p-3">
             <ClienteAvatar nombre={clienteSeleccionado.nombre} />
@@ -206,6 +205,11 @@ export function VentaForm() {
             {loadingClientes && <p className="mt-1.5 text-xs text-muted-light">Cargando clientes…</p>}
             {!loadingClientes && clienteQuery && clientesFiltrados.length === 0 && (
               <p className="mt-1.5 text-xs text-muted-light">Ningún cliente coincide.</p>
+            )}
+            {!clienteQuery && (
+              <p className="mt-1.5 text-xs text-muted-light">
+                Podés dejarlo así y registrar la venta sin cliente asociado.
+              </p>
             )}
           </div>
         )}

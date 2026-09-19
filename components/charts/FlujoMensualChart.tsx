@@ -102,7 +102,7 @@ export function FlujoMensualChart({ mes, mesLabel, dias, totalIngresos, totalEgr
 
           <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3 text-xs sm:flex-row sm:items-center sm:justify-between">
             {diaActivo ? (
-              <p className="text-muted">
+              <p className="min-h-8 min-w-0 flex-1 text-muted">
                 <span className="font-semibold text-ink">{etiquetaDiaFecha(mes, diaActivo.dia)}</span>
                 {' · '}Ingresos {formatCurrency(diaActivo.ingresos)}
                 {' · '}Egresos {formatCurrency(diaActivo.egresos)}
@@ -112,7 +112,7 @@ export function FlujoMensualChart({ mes, mesLabel, dias, totalIngresos, totalEgr
                 </span>
               </p>
             ) : (
-              <p className="text-muted-light">Tocá un día para ver el detalle.</p>
+              <p className="min-h-8 min-w-0 flex-1 text-muted-light">Tocá un día para ver el detalle.</p>
             )}
             <div className="flex shrink-0 items-center gap-3 text-[11px] text-muted-light">
               <span className="flex items-center gap-1.5">

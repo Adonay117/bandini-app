@@ -14,7 +14,6 @@ const NOMBRES: Record<string, string> = {
   shein: 'Shein',
   temu: 'Temu',
   amazon: 'Amazon',
-  aliexpress: 'AliExpress',
   shopee: 'Shopee',
   otras: 'Otras',
 };
@@ -73,7 +72,7 @@ export function PlataformasChart({ anio, onCambiarAnio, plataformas, datos }: Pr
   return (
     <ChartCard
       title="Ingresos por plataforma"
-      subtitle={`Comparativa mensual · Shein, Temu, Amazon y AliExpress · ${anio}`}
+      subtitle={`Comparativa mensual · Shein, Temu y Amazon · ${anio}`}
       actions={selectorAnio}
     >
       {totalGeneral === 0 ? (

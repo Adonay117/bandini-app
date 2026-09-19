@@ -3,12 +3,19 @@ import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { parsePaginacion } from '@/lib/utils/pagination';
 
 function mapVenta(row: Record<string, unknown>) {
-  const { cliente, producto, ...venta } = row as {
+  const { cliente, items, ...venta } = row as {
     cliente?: { nombre: string } | null;
-    producto?: { nombre: string } | null;
+    items?: { producto?: { nombre: string } | null; [key: string]: unknown }[];
     [key: string]: unknown;
   };
-  return { ...venta, cliente_nombre: cliente?.nombre ?? null, producto_nombre: producto?.nombre ?? null };
+  return {
+    ...venta,
+    cliente_nombre: cliente?.nombre ?? null,
+    items: (items ?? []).map(({ producto, ...item }) => ({
+      ...item,
+      producto_nombre: producto?.nombre ?? null,
+    })),
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -36,26 +43,35 @@ export async function GET(request: NextRequest) {
     return (data ?? []).map((r) => r.id as string);
   }
 
+  // Resuelve nombres de producto a los ids de las ventas (cabecera) que
+  // incluyen ese producto en alguno de sus items.
+  async function ventaIdsPorProducto(productoIds: string[]) {
+    const { data } = await supabase.from('venta_items').select('venta_id').in('producto_id', productoIds);
+    return [...new Set((data ?? []).map((r) => r.venta_id as string))];
+  }
+
   let clienteIds: string[] | null = null;
   if (clienteNombre) {
     clienteIds = await idsPorNombre('clientes', clienteNombre);
     if (clienteIds.length === 0) return respuestaVacia();
   }
 
-  let productoIds: string[] | null = null;
+  let ventaIdsDeProducto: string[] | null = null;
   if (productoNombre) {
-    productoIds = await idsPorNombre('productos', productoNombre);
-    if (productoIds.length === 0) return respuestaVacia();
+    const productoIds = await idsPorNombre('productos', productoNombre);
+    ventaIdsDeProducto = productoIds.length ? await ventaIdsPorProducto(productoIds) : [];
+    if (ventaIdsDeProducto.length === 0) return respuestaVacia();
   }
 
   // Búsqueda unificada: coincide por nombre de cliente O de producto.
   let searchOr: string | null = null;
   if (search) {
-    const [cli, prod] = await Promise.all([idsPorNombre('clientes', search), idsPorNombre('productos', search)]);
-    if (cli.length === 0 && prod.length === 0) return respuestaVacia();
+    const [cli, prodIds] = await Promise.all([idsPorNombre('clientes', search), idsPorNombre('productos', search)]);
+    const ventaIdsProd = prodIds.length ? await ventaIdsPorProducto(prodIds) : [];
+    if (cli.length === 0 && ventaIdsProd.length === 0) return respuestaVacia();
     const partes: string[] = [];
     if (cli.length) partes.push(`cliente_id.in.(${cli.join(',')})`);
-    if (prod.length) partes.push(`producto_id.in.(${prod.join(',')})`);
+    if (ventaIdsProd.length) partes.push(`id.in.(${ventaIdsProd.join(',')})`);
     searchOr = partes.join(',');
   }
 
@@ -64,7 +80,7 @@ export async function GET(request: NextRequest) {
     let q = query;
     if (clienteId) q = q.eq('cliente_id', clienteId);
     if (clienteIds) q = q.in('cliente_id', clienteIds);
-    if (productoIds) q = q.in('producto_id', productoIds);
+    if (ventaIdsDeProducto) q = q.in('id', ventaIdsDeProducto);
     if (searchOr) q = q.or(searchOr);
     if (metodoPago) q = q.eq('metodo_pago', metodoPago);
     if (fecha) q = q.gte('fecha', `${fecha}T00:00:00`).lte('fecha', `${fecha}T23:59:59.999`);
@@ -77,7 +93,7 @@ export async function GET(request: NextRequest) {
   const query = aplicarFiltros(
     supabase
       .from('ventas')
-      .select('*, cliente:clientes(nombre), producto:productos(nombre)', paginado ? { count: 'exact' } : undefined)
+      .select('*, cliente:clientes(nombre), items:venta_items(*, producto:productos(nombre))', paginado ? { count: 'exact' } : undefined)
       .order('fecha', { ascending: false })
   );
 
@@ -85,19 +101,31 @@ export async function GET(request: NextRequest) {
     const { page, pageSize, from, to } = parsePaginacion(params);
     const [{ data, error, count }, { data: todas, error: totalesError }] = await Promise.all([
       query.range(from, to),
-      aplicarFiltros(supabase.from('ventas').select('total, cantidad')),
+      aplicarFiltros(supabase.from('ventas').select('id, total')),
     ]);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (totalesError) return NextResponse.json({ error: totalesError.message }, { status: 500 });
-    const resumen = (todas ?? []).reduce(
-      (acc: { totalMonto: number; unidades: number }, v: { total: number; cantidad: number }) => {
-        acc.totalMonto += Number(v.total);
-        acc.unidades += v.cantidad;
-        return acc;
-      },
-      { totalMonto: 0, unidades: 0 }
-    );
-    return NextResponse.json({ data: (data ?? []).map(mapVenta), total: count ?? 0, page, pageSize, resumen });
+
+    const ventaIds = (todas ?? []).map((v: { id: string }) => v.id);
+    const totalMonto = (todas ?? []).reduce((s: number, v: { total: number }) => s + Number(v.total), 0);
+
+    let unidades = 0;
+    if (ventaIds.length) {
+      const { data: itemsTotales, error: itemsError } = await supabase
+        .from('venta_items')
+        .select('cantidad')
+        .in('venta_id', ventaIds);
+      if (itemsError) return NextResponse.json({ error: itemsError.message }, { status: 500 });
+      unidades = (itemsTotales ?? []).reduce((s: number, i: { cantidad: number }) => s + i.cantidad, 0);
+    }
+
+    return NextResponse.json({
+      data: (data ?? []).map(mapVenta),
+      total: count ?? 0,
+      page,
+      pageSize,
+      resumen: { totalMonto, unidades },
+    });
   }
 
   const { data, error } = await query;
@@ -118,11 +146,8 @@ interface ItemInput {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { cliente_id, metodo_pago, items } = body as { cliente_id: string; metodo_pago?: string; items: ItemInput[] };
+  const { cliente_id, metodo_pago, items } = body as { cliente_id?: string | null; metodo_pago?: string; items: ItemInput[] };
 
-  if (!cliente_id) {
-    return NextResponse.json({ error: 'cliente_id es obligatorio' }, { status: 400 });
-  }
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: 'Debe incluir al menos un producto' }, { status: 400 });
   }
@@ -144,13 +169,15 @@ export async function POST(request: NextRequest) {
 
   const supabase = createSupabaseAdminClient();
 
-  const { data: cliente, error: clienteError } = await supabase
-    .from('clientes')
-    .select('id')
-    .eq('id', cliente_id)
-    .single();
-  if (clienteError || !cliente) {
-    return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
+  if (cliente_id) {
+    const { data: cliente, error: clienteError } = await supabase
+      .from('clientes')
+      .select('id')
+      .eq('id', cliente_id)
+      .single();
+    if (clienteError || !cliente) {
+      return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
+    }
   }
 
   // Suma la cantidad pedida por producto (puede repetirse el mismo producto
@@ -187,38 +214,48 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const filas = items.map((item) => {
+  const itemsPreparados = items.map((item) => {
     const descuento = item.descuento ?? 0;
     const total = item.precio_unitario * item.cantidad - descuento;
     return {
-      cliente_id,
       producto_id: item.producto_id,
       cantidad: item.cantidad,
       precio_unitario: item.precio_unitario,
       descuento,
       total,
-      metodo_pago: metodo_pago ?? null,
     };
   });
 
-  if (filas.some((f) => !(f.total > 0))) {
+  if (itemsPreparados.some((i) => !(i.total > 0))) {
     return NextResponse.json({ error: 'El total calculado debe ser mayor a 0 en todos los productos' }, { status: 400 });
   }
 
-  const { data: ventas, error: ventaError } = await supabase.from('ventas').insert(filas).select();
+  // La venta se crea como una sola cabecera con N items en una única
+  // transacción (función crear_venta en la base de datos): si una línea
+  // falla, se revierte todo, incluyendo el ingreso/stickers que dispara la
+  // cabecera al crearse.
+  const { data: venta, error: ventaError } = (await supabase
+    .rpc('crear_venta', {
+      p_cliente_id: cliente_id ?? null,
+      p_metodo_pago: metodo_pago ?? null,
+      p_items: itemsPreparados,
+    })
+    .single()) as {
+    data: { id: string; cliente_id: string | null; metodo_pago: string | null; total: number; fecha: string } | null;
+    error: { code?: string; message: string } | null;
+  };
 
-  if (ventaError) {
-    const status = ventaError.code === '23514' ? 409 : 500;
-    return NextResponse.json({ error: ventaError.message }, { status });
+  if (ventaError || !venta) {
+    const status = ventaError?.code === '23514' ? 409 : 500;
+    return NextResponse.json({ error: ventaError?.message ?? 'Error al crear la venta' }, { status });
   }
 
-  // El trigger registrar_venta_con_stickers ya actualizó stock/stickers/notificaciones
-  // para cada fila insertada.
-  const { data: clienteActualizado } = await supabase
-    .from('clientes')
-    .select('*')
-    .eq('id', cliente_id)
-    .single();
+  const { data: ventaItems } = await supabase.from('venta_items').select('*').eq('venta_id', venta.id);
 
-  return NextResponse.json({ ventas, cliente: clienteActualizado }, { status: 201 });
+  let clienteActualizado = null;
+  if (cliente_id) {
+    ({ data: clienteActualizado } = await supabase.from('clientes').select('*').eq('id', cliente_id).single());
+  }
+
+  return NextResponse.json({ venta: { ...venta, items: ventaItems ?? [] }, cliente: clienteActualizado }, { status: 201 });
 }

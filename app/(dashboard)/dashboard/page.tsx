@@ -68,9 +68,11 @@ export default function DashboardPage() {
         <BalanceHero
           mesLabel={mesLabel.toLowerCase()}
           balance={k.balanceMes}
+          balancePrev={k.ingresosMesPrev - k.egresosMesPrev}
           ingresos={k.ingresosMes}
           egresos={k.egresosMes}
           ventas={k.ventasMes.monto}
+          dias={data.dias}
         />
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

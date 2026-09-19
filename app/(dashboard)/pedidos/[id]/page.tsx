@@ -980,7 +980,7 @@ export default function PedidoDetallePage() {
                       >
                         {ESTADOS_ITEM.map((estadoItem) => (
                           <option key={estadoItem} value={estadoItem}>
-                            {ESTADO_ITEM[estadoItem].emoji} {ESTADO_ITEM[estadoItem].label}
+                            {ESTADO_ITEM[estadoItem].label}
                           </option>
                         ))}
                       </Select>

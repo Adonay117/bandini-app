@@ -16,7 +16,6 @@ const ESTILOS: Record<string, EstiloPlataforma> = {
   shein: { clases: 'bg-pink-50 text-pink-700', emoji: '🩷', logo: '/plataformas/shein.svg', color: '#db2777' },
   temu: { clases: 'bg-orange-50 text-orange-700', emoji: '🧡', logo: '/plataformas/temu.svg', color: '#ea580c' },
   amazon: { clases: 'bg-sky-50 text-sky-700', emoji: '📦', logo: '/plataformas/amazon.svg', color: '#0284c7' },
-  aliexpress: { clases: 'bg-red-50 text-red-700', emoji: '🔴', logo: '/plataformas/aliexpress.svg', color: '#dc2626' },
   shopee: { clases: 'bg-amber-50 text-amber-700', emoji: '🟠', logo: '/plataformas/shopee.svg', color: '#d97706' },
 };
 
@@ -30,7 +29,7 @@ export function estiloPlataforma(plataforma: string): EstiloPlataforma {
 // Plataformas "conocidas" con marca propia — cualquier otra cae en el
 // bucket "Otras" en los gráficos comparativos para no ensuciar la leyenda
 // con texto libre poco frecuente.
-export const PLATAFORMAS_PRINCIPALES = ['shein', 'temu', 'amazon', 'aliexpress'] as const;
+export const PLATAFORMAS_PRINCIPALES = ['shein', 'temu', 'amazon'] as const;
 
 // Los cupones de descuento de la tarjeta de fidelidad (premios_stickers)
 // solo se pueden canjear en pedidos con al menos un artículo de estas

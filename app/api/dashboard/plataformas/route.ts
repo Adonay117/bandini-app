@@ -4,7 +4,7 @@ import { anioActual, mesesDelAnio } from '@/lib/utils/charts';
 import { PLATAFORMAS_PRINCIPALES } from '@/lib/utils/plataformas';
 
 // Comparativa mensual (enero-diciembre) de ingresos por plataforma
-// (Shein/Temu/Amazon/AliExpress) para un año dado. Se agrega en JS a partir
+// (Shein/Temu/Amazon) para un año dado. Se agrega en JS a partir
 // de pedido_items — no hay una vista SQL porque el volumen de pedidos es chico.
 
 function normalizarPlataforma(p: string): string {

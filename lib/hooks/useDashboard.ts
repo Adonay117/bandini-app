@@ -11,7 +11,9 @@ export interface DiaDashboard {
 }
 
 export interface ProductoTop {
+  producto_id: string | null;
   nombre: string;
+  imagen_url?: string | null;
   cantidad: number;
   total: number;
 }

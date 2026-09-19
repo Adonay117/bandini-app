@@ -24,7 +24,7 @@ export function useVentas(clienteId?: string) {
   }, [clienteId]);
 
   const crearVenta = useCallback(async (input: {
-    cliente_id: string;
+    cliente_id: string | null;
     metodo_pago?: string;
     items: { producto_id: string; cantidad: number; precio_unitario: number; descuento?: number }[];
   }) => {

@@ -49,18 +49,25 @@ export interface Producto {
 
 export type MetodoPago = 'efectivo' | 'tarjeta' | 'transferencia';
 
-export interface Venta {
+export interface VentaItem {
   id: string;
-  cliente_id?: string;
+  venta_id: string;
   producto_id: string;
   cantidad: number;
   precio_unitario: number;
   descuento: number;
   total: number;
+  producto_nombre?: string;
+}
+
+export interface Venta {
+  id: string;
+  cliente_id?: string;
   metodo_pago?: MetodoPago;
+  total: number;
   fecha: string;
   cliente_nombre?: string;
-  producto_nombre?: string;
+  items: VentaItem[];
 }
 
 export interface PremioSticker {
