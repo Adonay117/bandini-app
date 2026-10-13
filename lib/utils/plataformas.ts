@@ -13,9 +13,9 @@ export interface EstiloPlataforma {
 // (Cider, la que sea) cae en el estilo neutro por defecto — el campo sigue
 // siendo texto libre, no una lista cerrada.
 const ESTILOS: Record<string, EstiloPlataforma> = {
-  shein: { clases: 'bg-pink-50 text-pink-700', emoji: '🩷', logo: '/plataformas/shein.svg', color: '#db2777' },
-  temu: { clases: 'bg-orange-50 text-orange-700', emoji: '🧡', logo: '/plataformas/temu.svg', color: '#ea580c' },
-  amazon: { clases: 'bg-sky-50 text-sky-700', emoji: '📦', logo: '/plataformas/amazon.svg', color: '#0284c7' },
+  shein: { clases: 'bg-purple-50 text-purple-700', emoji: '💜', logo: '/plataformas/shein.svg', color: '#9333ea' },
+  temu: { clases: 'bg-orange-50 text-orange-700', emoji: '🧡', logo: '/plataformas/temu.webp', color: '#ea580c' },
+  amazon: { clases: 'bg-sky-50 text-sky-700', emoji: '🖤', logo: '/plataformas/amazon.webp', color: '#0284c7' },
   shopee: { clases: 'bg-amber-50 text-amber-700', emoji: '🟠', logo: '/plataformas/shopee.svg', color: '#d97706' },
 };
 

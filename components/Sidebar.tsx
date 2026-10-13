@@ -4,18 +4,21 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+  AlertTriangle,
   Bell,
   ClipboardList,
   LayoutDashboard,
   LogOut,
   Package,
   ShoppingCart,
+  Truck,
   Users,
   Wallet,
   X,
 } from 'lucide-react';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useNotificacionesPendientes } from '@/lib/hooks/useNotificacionesPendientes';
+import { notificar } from '@/lib/notificar';
 
 interface NavItem {
   href: string;
@@ -33,6 +36,13 @@ const GRUPOS: { label: string; items: NavItem[] }[] = [
       { href: '/productos', label: 'Productos', icon: Package },
       { href: '/ventas', label: 'Ventas', icon: ShoppingCart },
       { href: '/pedidos', label: 'Pedidos', icon: ClipboardList },
+    ],
+  },
+  {
+    label: 'Logística',
+    items: [
+      { href: '/embarques', label: 'Embarques', icon: Truck },
+      { href: '/incidencias', label: 'Incidencias', icon: AlertTriangle },
     ],
   },
   {
@@ -63,7 +73,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   }, []);
 
   async function cerrarSesion() {
-    await getSupabaseClient().auth.signOut();
+    const { error } = await getSupabaseClient().auth.signOut();
+    if (error) {
+      notificar.error('No se pudo cerrar sesión', error.message);
+      return;
+    }
+    notificar.info('Sesión cerrada');
     router.push('/login');
     router.refresh();
   }

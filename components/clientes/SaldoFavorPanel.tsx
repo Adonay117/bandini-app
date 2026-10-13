@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { MetodoPagoAbono, MovimientoSaldoFavor } from '@/lib/types';
 import { formatCurrency, formatDate } from '@/lib/utils/formatters';
+import { pedirApi } from '@/lib/api';
+import { notificar } from '@/lib/notificar';
 
 const MOTIVO_LABEL: Record<MovimientoSaldoFavor['motivo'], string> = {
   recarga: 'Recarga',
@@ -60,12 +62,17 @@ export function SaldoFavorPanel({
     setRegistrando(true);
     setError(null);
     try {
-      const res = await fetch(`/api/clientes/${clienteId}/saldo-favor`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ monto: Number(monto), metodo_pago: metodoPago, nota: nota.trim() || undefined }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Error al registrar la recarga');
+      await notificar(
+        pedirApi(
+          `/api/clientes/${clienteId}/saldo-favor`,
+          {
+            method: 'POST',
+            body: JSON.stringify({ monto: Number(monto), metodo_pago: metodoPago, nota: nota.trim() || undefined }),
+          },
+          'Error al registrar la recarga'
+        ),
+        { exito: `Recarga de ${formatCurrency(Number(monto))} registrada`, error: 'No se pudo registrar la recarga' }
+      );
       setMonto('');
       setNota('');
       await cargar();

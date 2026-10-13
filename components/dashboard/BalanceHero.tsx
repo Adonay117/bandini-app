@@ -56,9 +56,7 @@ export function BalanceHero({ mesLabel, balance, balancePrev, ingresos, egresos,
   const positivo = balance >= 0;
   const delta = balancePrev ? (balance - balancePrev) / Math.abs(balancePrev) : null;
 
-  // Curva de balance acumulado día a día del mes — el mismo número grande es
-  // el último punto de la curva, para que la cifra se sienta parte de una
-  // tendencia y no un dato suelto.
+
   let acumulado = 0;
   const serie = dias.map((d) => (acumulado += d.ingresos - d.egresos));
   const min = Math.min(0, ...serie);
@@ -74,12 +72,12 @@ export function BalanceHero({ mesLabel, balance, balancePrev, ingresos, egresos,
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-[#2d2645] p-5 text-white shadow-[var(--shadow-card)] sm:p-6">
-      <div
+      {/* <div
         aria-hidden
         className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-white/[0.05]"
-      />
+      /> */}
 
-      {puntos.length > 1 && (
+      {/* {puntos.length > 1 && (
         <svg
           aria-hidden
           viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
@@ -98,7 +96,7 @@ export function BalanceHero({ mesLabel, balance, balancePrev, ingresos, egresos,
             <circle cx={ultimo[0]} cy={ultimo[1]} r="3.5" fill={positivo ? '#7ee6b0' : '#ffb0a8'} stroke="#2d2645" strokeWidth="1.5" />
           )}
         </svg>
-      )}
+      )} */}
 
       <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>

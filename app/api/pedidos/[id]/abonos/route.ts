@@ -28,7 +28,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const { data: pedido, error: pedidoError } = await supabase
     .from('pedidos')
-    .select('id, cliente_id, total_pedido, total_abonado')
+    .select('id, cliente_id, plataforma, total_pedido, total_abonado')
     .eq('id', id)
     .single();
   if (pedidoError || !pedido) {
@@ -57,17 +57,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'El premio ya fue canjeado' }, { status: 409 });
     }
 
-    // Los cupones de tarjeta solo aplican a pedidos con artículos Shein/Temu.
-    const { data: items, error: itemsError } = await supabase
-      .from('pedido_items')
-      .select('plataforma')
-      .eq('pedido_id', id);
-    if (itemsError) {
-      return NextResponse.json({ error: itemsError.message }, { status: 500 });
-    }
-    if (!(items ?? []).some((item) => plataformaAplicaCupon(item.plataforma))) {
+    // Los cupones de tarjeta solo aplican a pedidos de Shein/Temu.
+    if (!pedido.plataforma || !plataformaAplicaCupon(pedido.plataforma)) {
       return NextResponse.json(
-        { error: 'Los premios de tarjeta solo se canjean en pedidos con artículos de Shein o Temu.' },
+        { error: 'Los premios de tarjeta solo se canjean en pedidos de Shein o Temu.' },
         { status: 409 }
       );
     }

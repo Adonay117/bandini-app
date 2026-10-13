@@ -6,9 +6,11 @@ import { PLATAFORMAS_PRINCIPALES } from '@/lib/utils/plataformas';
 // Comparativa mensual (enero-diciembre) de ingresos por plataforma
 // (Shein/Temu/Amazon) para un año dado. Se agrega en JS a partir
 // de pedido_items — no hay una vista SQL porque el volumen de pedidos es chico.
+// La plataforma vive en el pedido; pedido_items.plataforma_origen solo se usa
+// para pedidos viejos que quedaron sin plataforma asignada.
 
-function normalizarPlataforma(p: string): string {
-  const clave = p.trim().toLowerCase();
+function normalizarPlataforma(p: string | null): string {
+  const clave = (p ?? '').trim().toLowerCase();
   return (PLATAFORMAS_PRINCIPALES as readonly string[]).includes(clave) ? clave : 'otras';
 }
 
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   const { data: pedidos, error: errPedidos } = await supabase
     .from('pedidos')
-    .select('id, fecha_creacion')
+    .select('id, fecha_creacion, plataforma')
     .gte('fecha_creacion', iso(desde))
     .lte('fecha_creacion', iso(hasta));
 
@@ -34,7 +36,9 @@ export async function GET(request: NextRequest) {
   }
 
   const mesPorPedido = new Map<string, string>();
+  const plataformaPorPedido = new Map<string, string | null>();
   for (const p of pedidos ?? []) {
+    plataformaPorPedido.set(p.id, p.plataforma);
     const f = new Date(p.fecha_creacion);
     mesPorPedido.set(p.id, `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}`);
   }
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest) {
   const { data: items, error: errItems } =
     idsPedidos.length === 0
       ? { data: [], error: null }
-      : await supabase.from('pedido_items').select('pedido_id, plataforma, precio').in('pedido_id', idsPedidos);
+      : await supabase.from('pedido_items').select('pedido_id, plataforma_origen, precio_venta, cantidad, monto_reembolsado').in('pedido_id', idsPedidos);
 
   if (errItems) {
     return NextResponse.json({ error: errItems.message }, { status: 500 });
@@ -57,10 +61,10 @@ export async function GET(request: NextRequest) {
   for (const it of items ?? []) {
     const mes = mesPorPedido.get(it.pedido_id);
     if (!mes) continue;
-    const plataforma = normalizarPlataforma(it.plataforma);
+    const plataforma = normalizarPlataforma(plataformaPorPedido.get(it.pedido_id) ?? it.plataforma_origen);
     plataformasEncontradas.add(plataforma);
     const porMes = acumulado.get(mes)!;
-    porMes.set(plataforma, (porMes.get(plataforma) ?? 0) + Number(it.precio));
+    porMes.set(plataforma, (porMes.get(plataforma) ?? 0) + Number(it.precio_venta) * it.cantidad - Number(it.monto_reembolsado));
   }
 
   // Orden fijo con las 4 principales siempre presentes (aunque no tengan

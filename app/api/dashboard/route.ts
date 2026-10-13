@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { mesActual } from '@/lib/utils/charts';
+import { ESTADOS_PEDIDO_CERRADOS } from '@/lib/utils/pedidos';
 
 // Un único endpoint que arma todo el dashboard: KPIs + series de los gráficos,
 // ya agregados en el servidor y acotados al mes pedido. Reemplaza las 5
@@ -55,7 +56,10 @@ export async function GET(request: NextRequest) {
       supabase.from('clientes').select('*', { count: 'exact', head: true }).eq('activo', true),
       supabase.from('productos').select('stock_actual, stock_minimo').eq('activo', true),
       supabase.from('notificaciones_admin').select('*', { count: 'exact', head: true }).eq('visto', false),
-      supabase.from('pedidos').select('saldo_pendiente').neq('estado', 'completado'),
+      supabase
+        .from('pedidos')
+        .select('saldo_pendiente')
+        .not('estado', 'in', `(${ESTADOS_PEDIDO_CERRADOS.join(',')})`),
     ]);
 
   const conError = [txMes, txPrev, ventasMes, ventasPrev, itemsVentasMes, clientes, productos, notificaciones, pedidos].find(

@@ -15,6 +15,7 @@ import { useProductos } from '@/lib/hooks/useProductos';
 import { useVentas } from '@/lib/hooks/useVentas';
 import { Cliente, MetodoPago, Producto } from '@/lib/types';
 import { calcularStickers, formatCurrency, montoFaltanteParaSiguienteSticker } from '@/lib/utils/formatters';
+import { notificar } from '@/lib/notificar';
 
 interface LineaCarrito {
   producto: Producto;
@@ -126,16 +127,19 @@ export function VentaForm() {
     setSubmitting(true);
     setError(null);
     try {
-      await crearVenta({
-        cliente_id: clienteSeleccionado?.id ?? null,
-        metodo_pago: metodoPago,
-        items: lineas.map((l) => ({
-          producto_id: l.producto.id,
-          cantidad: l.cantidad,
-          precio_unitario: l.precioUnitario,
-          descuento: l.descuento,
-        })),
-      });
+      await notificar(
+        crearVenta({
+          cliente_id: clienteSeleccionado?.id ?? null,
+          metodo_pago: metodoPago,
+          items: lineas.map((l) => ({
+            producto_id: l.producto.id,
+            cantidad: l.cantidad,
+            precio_unitario: l.precioUnitario,
+            descuento: l.descuento,
+          })),
+        }),
+        { cargando: 'Registrando venta…', exito: 'Venta registrada', error: 'No se pudo registrar la venta' }
+      );
       setExito(true);
       setTimeout(() => router.push('/ventas'), 800);
     } catch (err) {

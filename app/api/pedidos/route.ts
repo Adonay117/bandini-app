@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { parsePaginacion } from '@/lib/utils/pagination';
+import { ESTADOS_PEDIDO_CERRADOS } from '@/lib/utils/pedidos';
+import { PLATAFORMAS } from '@/lib/utils/logistica';
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const clienteId = params.get('cliente_id');
   const estado = params.get('estado');
+  const plataforma = params.get('plataforma');
   const fecha = params.get('fecha');
   const clienteNombre = params.get('cliente')?.trim();
   const lugar = params.get('lugar')?.trim();
@@ -43,18 +46,19 @@ export async function GET(request: NextRequest) {
   if (clienteId) query = query.eq('cliente_id', clienteId);
   if (clienteIds) query = query.in('cliente_id', clienteIds);
   if (estado) query = query.eq('estado', estado);
+  if (plataforma) query = query.eq('plataforma', plataforma);
   if (fecha) query = query.gte('fecha_creacion', `${fecha}T00:00:00`).lte('fecha_creacion', `${fecha}T23:59:59.999`);
 
   if (paginado) {
     const { page, pageSize, from, to } = parsePaginacion(params);
 
     // Resumen global (independiente de filtros y página): saldo por cobrar y
-    // cantidad de pedidos que no están completados.
+    // cantidad de pedidos que siguen activos (ni completados, ni desistidos, ni cancelados).
     async function calcularResumen() {
       const { data } = await supabase
         .from('pedidos')
         .select('estado, saldo_pendiente')
-        .neq('estado', 'completado');
+        .not('estado', 'in', `(${ESTADOS_PEDIDO_CERRADOS.join(',')})`);
       const filas = data ?? [];
       return {
         activos: filas.length,
@@ -89,10 +93,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { cliente_id, estado } = body;
+  const { cliente_id, estado, plataforma } = body;
 
   if (!cliente_id) {
     return NextResponse.json({ error: 'cliente_id es obligatorio' }, { status: 400 });
+  }
+  // Cada pedido pertenece a una sola plataforma.
+  if (!PLATAFORMAS.includes(plataforma)) {
+    return NextResponse.json({ error: `plataforma debe ser una de: ${PLATAFORMAS.join(', ')}` }, { status: 400 });
   }
 
   const supabase = createSupabaseAdminClient();
@@ -110,7 +118,7 @@ export async function POST(request: NextRequest) {
   // automáticamente (trigger recalcular_totales_pedido) según se agreguen artículos.
   const { data, error } = await supabase
     .from('pedidos')
-    .insert({ cliente_id, estado: estado ?? 'cotizacion' })
+    .insert({ cliente_id, plataforma, estado: estado ?? 'cotizacion' })
     .select()
     .single();
 

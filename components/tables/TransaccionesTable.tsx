@@ -6,6 +6,14 @@ const categoriaLabel: Record<string, string> = {
   venta: 'Venta',
   abono_pedido: 'Abono de pedido',
   premio_sticker: 'Premio de sticker',
+  costo_embarque: 'Costo de embarque',
+  ajuste_costo_embarque: 'Ajuste de costo de embarque',
+  compra_pedido: 'Compra en plataforma',
+  ajuste_compra_pedido: 'Ajuste de compra en plataforma',
+  reembolso_plataforma: 'Reembolso de plataforma',
+  saldo_favor: 'Saldo a favor',
+  reembolso_pedido: 'Reembolso a cliente',
+  merma: 'Merma',
 };
 
 export function TransaccionesTable({ transacciones }: { transacciones: Transaccion[] }) {

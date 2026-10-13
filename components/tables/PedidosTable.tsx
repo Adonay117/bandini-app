@@ -8,7 +8,8 @@ import { PedidoProgress } from '@/components/pedidos/PedidoProgress';
 import { PopConfirm, PopConfirmRequest } from '@/components/ui/PopConfirm';
 import { EstadoPedido, Pedido } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils/formatters';
-import { ESTADOS_PEDIDO, ESTADO_PEDIDO, evaluarCambioEstado } from '@/lib/utils/pedidos';
+import { PlataformaBadge } from '@/components/ui/PlataformaBadge';
+import { ESTADOS_PEDIDO_MANUALES, ESTADO_PEDIDO, evaluarCambioEstado } from '@/lib/utils/pedidos';
 
 interface Props {
   pedidos: Pedido[];
@@ -61,7 +62,8 @@ export function PedidosTable({ pedidos, onCambiarEstado }: Props) {
                           aria-label={`Cambiar estado del pedido #${p.numero}`}
                           className="rounded-md border border-border bg-white px-1.5 py-0.5 text-[11px] font-semibold text-ink outline-none focus:border-primary disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {ESTADOS_PEDIDO.map((e) => (
+                          {/* Solo los estados manuales; los logísticos los calcula el sistema */}
+                          {[p.estado, ...ESTADOS_PEDIDO_MANUALES.filter((e) => e !== p.estado)].map((e) => (
                             <option key={e} value={e}>
                               {ESTADO_PEDIDO[e].label}
                             </option>
@@ -72,6 +74,7 @@ export function PedidosTable({ pedidos, onCambiarEstado }: Props) {
                     ) : (
                       <Badge variant={est.badge}>{est.label}</Badge>
                     )}
+                    {p.plataforma && <PlataformaBadge plataforma={p.plataforma} />}
                   </div>
                   <p className="mt-0.5 truncate text-xs text-muted-light">
                     {p.cliente_nombre ?? 'Sin cliente'}

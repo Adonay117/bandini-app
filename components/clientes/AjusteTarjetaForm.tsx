@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Cliente } from '@/lib/types';
 import { calcularStickers } from '@/lib/utils/formatters';
+import { pedirApi } from '@/lib/api';
+import { notificar } from '@/lib/notificar';
 
 interface PremioHist {
   monto: 12 | 25;
@@ -49,18 +51,23 @@ export function AjusteTarjetaForm({
     setEnviando(true);
     setError(null);
     try {
-      const res = await fetch(`/api/clientes/${cliente.id}/ajuste-tarjeta`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          monto_acumulado_tarjeta: montoNum,
-          total_tarjetas_completadas: Number(tarjetas) || 0,
-          total_premios_ganados: Number(premiosGanados) || 0,
-          total_moneda_gastada: gasto.trim() ? Number(gasto) : undefined,
-          premios: premios.length ? premios : undefined,
-        }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Error al ajustar la tarjeta');
+      await notificar(
+        pedirApi(
+          `/api/clientes/${cliente.id}/ajuste-tarjeta`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              monto_acumulado_tarjeta: montoNum,
+              total_tarjetas_completadas: Number(tarjetas) || 0,
+              total_premios_ganados: Number(premiosGanados) || 0,
+              total_moneda_gastada: gasto.trim() ? Number(gasto) : undefined,
+              premios: premios.length ? premios : undefined,
+            }),
+          },
+          'Error al ajustar la tarjeta'
+        ),
+        { exito: 'Tarjeta de stickers ajustada', error: 'No se pudo ajustar la tarjeta' }
+      );
       onGuardado();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al ajustar la tarjeta');

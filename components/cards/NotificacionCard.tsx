@@ -5,6 +5,7 @@ import { Cake, Gift, Package, AlertTriangle, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { NotificacionAdmin, TipoNotificacion } from '@/lib/types';
 import { formatDateTime } from '@/lib/utils/formatters';
+import { notificar } from '@/lib/notificar';
 
 const iconos: Record<TipoNotificacion, typeof Cake> = {
   cumpleanos: Cake,
@@ -25,6 +26,7 @@ export function NotificacionCard({ notificacion, onMarcarLeida }: NotificacionCa
 
   async function copiar() {
     await navigator.clipboard.writeText(notificacion.cuerpo_mensaje);
+    notificar.exito('Mensaje copiado', 'Listo para pegar en WhatsApp');
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
   }
@@ -32,7 +34,12 @@ export function NotificacionCard({ notificacion, onMarcarLeida }: NotificacionCa
   async function marcarLeida() {
     setMarcando(true);
     try {
-      await onMarcarLeida(notificacion.id);
+      await notificar(onMarcarLeida(notificacion.id), {
+        exito: 'Notificación marcada como leída',
+        error: 'No se pudo marcar como leída',
+      });
+    } catch {
+      // el toast ya muestra el error
     } finally {
       setMarcando(false);
     }

@@ -11,8 +11,11 @@ import { Pagination } from '@/components/ui/Pagination';
 import { PedidosTable } from '@/components/tables/PedidosTable';
 import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
 import { formatCurrency } from '@/lib/utils/formatters';
-import { ESTADOS_PEDIDO, ESTADO_PEDIDO } from '@/lib/utils/pedidos';
+import { TODOS_ESTADOS_PEDIDO, ESTADO_PEDIDO, ESTADO_PEDIDO_FRASE } from '@/lib/utils/pedidos';
+import { NOMBRE_PLATAFORMA, PLATAFORMAS } from '@/lib/utils/logistica';
 import { EstadoPedido, Pedido } from '@/lib/types';
+import { pedirApi } from '@/lib/api';
+import { notificar } from '@/lib/notificar';
 
 interface ResumenPedidos {
   porCobrar: number;
@@ -22,14 +25,16 @@ interface ResumenPedidos {
 export default function PedidosPage() {
   const [search, setSearch] = useState('');
   const [estado, setEstado] = useState('');
+  const [plataforma, setPlataforma] = useState('');
   const [cambioEstadoError, setCambioEstadoError] = useState<string | null>(null);
 
   const params = useMemo(
     () => ({
       ...(search.trim() && { search: search.trim() }),
       ...(estado && { estado }),
+      ...(plataforma && { plataforma }),
     }),
-    [search, estado]
+    [search, estado, plataforma]
   );
 
   const { items: pedidos, total, totalPages, page, setPage, loading, error, refetch, extra } = usePaginatedList<
@@ -37,18 +42,16 @@ export default function PedidosPage() {
     { resumen?: ResumenPedidos }
   >('/api/pedidos', params);
 
-  const hayFiltros = Boolean(search || estado);
+  const hayFiltros = Boolean(search || estado || plataforma);
   const resumen = extra.resumen;
 
   async function cambiarEstado(id: string, nuevoEstado: EstadoPedido) {
     setCambioEstadoError(null);
     try {
-      const res = await fetch(`/api/pedidos/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Error al cambiar estado');
+      await notificar(
+        pedirApi(`/api/pedidos/${id}`, { method: 'PATCH', body: JSON.stringify({ estado: nuevoEstado }) }, 'Error al cambiar estado'),
+        { exito: `Pedido ${ESTADO_PEDIDO_FRASE[nuevoEstado]}`, error: 'No se pudo cambiar el estado' }
+      );
       refetch();
     } catch (err) {
       setCambioEstadoError(err instanceof Error ? err.message : 'Error al cambiar estado');
@@ -60,7 +63,7 @@ export default function PedidosPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">Pedidos</h1>
-          <p className="mt-1 text-sm text-muted">Órdenes de Shein, Temu, Amazon y más.</p>
+          <p className="mt-1 text-sm text-muted">Órdenes de Shein, Temu y Amazon.</p>
         </div>
         <Link href="/pedidos/nuevo">
           <Button>
@@ -71,7 +74,7 @@ export default function PedidosPage() {
 
       <div className="grid grid-cols-3 gap-3">
         <StatTile label={hayFiltros ? 'Resultados' : 'Total pedidos'} value={total} />
-        <StatTile label="En curso" value={resumen?.activos ?? '—'} hint="sin completar" />
+        <StatTile label="En curso" value={resumen?.activos ?? '—'} hint="sin cerrar" />
         <StatTile
           label="Por cobrar"
           value={resumen ? formatCurrency(resumen.porCobrar) : '—'}
@@ -93,9 +96,22 @@ export default function PedidosPage() {
           className="min-h-11 rounded-xl border border-border bg-white px-3.5 text-sm text-ink outline-none transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/15 sm:w-48"
         >
           <option value="">Cualquier estado</option>
-          {ESTADOS_PEDIDO.map((e) => (
+          {TODOS_ESTADOS_PEDIDO.map((e) => (
             <option key={e} value={e}>
               {ESTADO_PEDIDO[e].label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={plataforma}
+          onChange={(e) => setPlataforma(e.target.value)}
+          aria-label="Filtrar por plataforma"
+          className="min-h-11 rounded-xl border border-border bg-white px-3.5 text-sm text-ink outline-none transition-shadow focus:border-primary focus:ring-2 focus:ring-primary/15 sm:w-40"
+        >
+          <option value="">Toda plataforma</option>
+          {PLATAFORMAS.map((p) => (
+            <option key={p} value={p}>
+              {NOMBRE_PLATAFORMA[p]}
             </option>
           ))}
         </select>
@@ -105,6 +121,7 @@ export default function PedidosPage() {
             onClick={() => {
               setSearch('');
               setEstado('');
+              setPlataforma('');
             }}
           >
             Limpiar

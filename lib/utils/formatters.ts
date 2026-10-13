@@ -30,3 +30,17 @@ export function montoFaltanteParaSiguienteSticker(montoAcumulado: number): numbe
   const restante = UMBRAL_MONTO_POR_STICKER - (montoAcumulado % UMBRAL_MONTO_POR_STICKER);
   return restante === UMBRAL_MONTO_POR_STICKER ? 0 : restante;
 }
+
+/** Fecha sin hora ('YYYY-MM-DD', columnas `date`): se interpreta como día
+ * local — new Date('2026-09-01') sería medianoche UTC y en El Salvador se
+ * mostraría como el día anterior. */
+export function formatDia(fecha: string): string {
+  const [anio, mes, dia] = fecha.slice(0, 10).split('-').map(Number);
+  return formatDate(new Date(anio, mes - 1, dia));
+}
+
+/** Hoy en formato 'YYYY-MM-DD' (hora local), para inputs type="date". */
+export function hoyISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}

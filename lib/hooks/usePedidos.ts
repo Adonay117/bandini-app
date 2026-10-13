@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { EstadoPedido, Pedido } from '@/lib/types';
+import { EstadoPedido, Pedido, Plataforma } from '@/lib/types';
 
 export function usePedidos(clienteId?: string) {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -24,7 +24,7 @@ export function usePedidos(clienteId?: string) {
   }, [clienteId]);
 
   const crearPedido = useCallback(
-    async (input: { cliente_id: string; estado?: EstadoPedido }) => {
+    async (input: { cliente_id: string; plataforma: Plataforma; estado?: EstadoPedido }) => {
       const res = await fetch('/api/pedidos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

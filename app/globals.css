@@ -87,3 +87,9 @@ body::before {
     animation: none;
   }
 }
+
+/* Toasts (Sileo): la librería capitaliza cada palabra del título; en
+   español se ve raro, así que se respeta el texto tal cual. */
+[data-sileo-title] {
+  text-transform: none;
+}
