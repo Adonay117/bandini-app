@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
-import { statusDeErrorDb } from '@/lib/utils/logistica';
+import { normalizarReposiciones, statusDeErrorDb } from '@/lib/utils/logistica';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,7 +27,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const costoPorLinea = new Map((costos.data ?? []).map((c) => [c.embarque_item_id, Number(c.costo_importacion)]));
   const metodo = costos.data?.[0]?.metodo_reparto ?? 'unidades';
 
-  const conCosto = (lineas.data ?? []).map((l) => ({ ...l, costo_importacion: costoPorLinea.get(l.id) ?? 0 }));
+  const conCosto = (lineas.data ?? []).map((l) => ({
+    ...l,
+    incidencias: normalizarReposiciones(l.incidencias),
+    costo_importacion: costoPorLinea.get(l.id) ?? 0,
+  }));
 
   return NextResponse.json({ ...embarque.data, metodo_reparto: metodo, lineas: conCosto });
 }

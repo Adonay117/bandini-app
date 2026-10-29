@@ -6,8 +6,10 @@ import {
   EstadoIncidencia,
   EstadoRecepcion,
   EstadoReposicion,
+  IncidenciaConDevoluciones,
   ModalidadEntrega,
   Plataforma,
+  Reposicion,
   ResolucionDevolucion,
   TipoIncidencia,
 } from '@/lib/types';
@@ -100,6 +102,21 @@ export function codigoPedido(numero: number): string {
 
 export function codigoDevolucion(numero: number): string {
   return `DEV-${String(numero).padStart(3, '0')}`;
+}
+
+// reposiciones.devolucion_id es unique, así que PostgREST embebe la
+// reposición como objeto o null (relación 1-1). La API la expone siempre
+// como arreglo para que el frontend no tenga que distinguir.
+export function normalizarReposiciones(
+  incidencias: IncidenciaConDevoluciones[] | null | undefined
+): IncidenciaConDevoluciones[] {
+  return (incidencias ?? []).map((inc) => ({
+    ...inc,
+    devoluciones: (inc.devoluciones ?? []).map((dev) => {
+      const rep = dev.reposiciones as Reposicion[] | Reposicion | null | undefined;
+      return { ...dev, reposiciones: Array.isArray(rep) ? rep : rep ? [rep] : [] };
+    }),
+  }));
 }
 
 // Traduce errores de validación de Postgres (raise exception … errcode

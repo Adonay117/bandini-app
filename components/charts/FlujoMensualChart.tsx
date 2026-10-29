@@ -41,7 +41,7 @@ export function FlujoMensualChart({ mes, mesLabel, dias, totalIngresos, totalEgr
   const netoActivo = diaActivo ? diaActivo.ingresos - diaActivo.egresos : 0;
 
   return (
-    <ChartCard title="Flujo del mes" subtitle={`Resultado neto por día · ${mesLabel}`}>
+    <ChartCard title="Flujo del mes" subtitle={`Dinero que entró y salió de caja (abonos completos y compras en plataforma) · ${mesLabel}`}>
       <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
         <span>
           Ingresos <b className="font-semibold text-positive tabular-nums">{formatCurrency(totalIngresos)}</b>
@@ -117,11 +117,11 @@ export function FlujoMensualChart({ mes, mesLabel, dias, totalIngresos, totalEgr
             <div className="flex shrink-0 items-center gap-3 text-[11px] text-muted-light">
               <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: 'rgba(200,69,63,0.85)' }} />
-                Pérdida
+                Salió más
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: 'rgba(31,138,91,0.85)' }} />
-                Ganancia
+                Entró más
               </span>
             </div>
           </div>

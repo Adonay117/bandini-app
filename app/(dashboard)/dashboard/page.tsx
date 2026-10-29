@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Bell, PackageX, ShoppingCart, Users, Wallet } from 'lucide-react';
-import { BalanceHero } from '@/components/dashboard/BalanceHero';
+import { GananciaHero } from '@/components/dashboard/GananciaHero';
 import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { MetricCard } from '@/components/dashboard/MetricCard';
-import { ComposicionIngresoChart } from '@/components/charts/ComposicionIngresoChart';
+import { ComposicionGananciaChart } from '@/components/charts/ComposicionGananciaChart';
 import { FlujoMensualChart } from '@/components/charts/FlujoMensualChart';
 import { MonthYearFilter } from '@/components/charts/MonthYearFilter';
+import { MovimientosChart } from '@/components/charts/MovimientosChart';
 import { PlataformasChart } from '@/components/charts/PlataformasChart';
 import { TopProductosChart } from '@/components/charts/TopProductosChart';
 import { useDashboard } from '@/lib/hooks/useDashboard';
@@ -26,7 +27,7 @@ export default function DashboardPage() {
   const { data, loading, error } = useDashboard(mes);
 
   const [anioPlataformas, setAnioPlataformas] = useState(anioActual);
-  const { data: dataPlataformas } = usePlataformasDashboard(anioPlataformas);
+  const { data: dataPlataformas, loading: cargandoPlataformas } = usePlataformasDashboard(anioPlataformas);
 
   if (error && !data) {
     return (
@@ -65,21 +66,21 @@ export default function DashboardPage() {
       <div
         className={`flex flex-col gap-6 transition-opacity duration-200 ${loading ? 'pointer-events-none opacity-60' : 'opacity-100'}`}
       >
-        <BalanceHero
+        <GananciaHero
           mesLabel={mesLabel.toLowerCase()}
-          balance={k.balanceMes}
-          balancePrev={k.ingresosMesPrev - k.egresosMesPrev}
-          ingresos={k.ingresosMes}
-          egresos={k.egresosMes}
-          ventas={k.ventasMes.monto}
-          dias={data.dias}
+          ganancia={k.gananciaMes}
+          gananciaPrev={k.gananciaMesPrev}
+          gananciaPedidos={k.gananciaPedidos}
+          gananciaTienda={k.gananciaTienda}
+          vendido={k.vendidoMes}
+          productosSinCosto={k.productosSinCosto}
         />
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            label="Ventas del mes"
+            label="Ventas de tienda"
             value={formatCurrency(k.ventasMes.monto)}
-            hint={`${k.ventasMes.count} venta${k.ventasMes.count === 1 ? '' : 's'}`}
+            hint={`${k.ventasMes.count} venta${k.ventasMes.count === 1 ? '' : 's'} este mes`}
             icon={ShoppingCart}
             delta={deltaRelativo(k.ventasMes.monto, k.ventasMesPrev)}
           />
@@ -113,6 +114,7 @@ export default function DashboardPage() {
             onCambiarAnio={setAnioPlataformas}
             plataformas={dataPlataformas.plataformas}
             datos={dataPlataformas.datos}
+            cargando={cargandoPlataformas}
           />
         )}
 
@@ -124,10 +126,12 @@ export default function DashboardPage() {
             totalIngresos={k.ingresosMes}
             totalEgresos={k.egresosMes}
           />
-          <ComposicionIngresoChart mes={mes} mesLabel={mesLabel} dias={data.dias} />
+          <ComposicionGananciaChart mes={mes} mesLabel={mesLabel} dias={data.dias} />
         </div>
 
         <TopProductosChart data={data.topProductos} mesLabel={mesLabel} />
+
+        <MovimientosChart mes={mes} mesLabel={mesLabel} dias={data.dias} />
       </div>
     </div>
   );

@@ -2,12 +2,22 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+export interface MovimientoDia {
+  tipo: 'ingreso' | 'egreso';
+  categoria: string | null;
+  monto: number;
+}
+
 export interface DiaDashboard {
   dia: number;
   ingresos: number;
   egresos: number;
-  ventas: number;
-  abonos: number;
+  // Ingresos/egresos del día agrupados por categoría de transacción.
+  movimientos: MovimientoDia[];
+  // Ganancia neta del día: pedidos por su fecha de creación, tienda por la
+  // fecha de la venta.
+  gananciaPedidos: number;
+  gananciaTienda: number;
 }
 
 export interface ProductoTop {
@@ -32,6 +42,15 @@ export interface DashboardKpis {
   balanceMes: number;
   ingresosMesPrev: number;
   egresosMesPrev: number;
+  // Ganancia neta: lo vendido menos lo pagado en la plataforma/inventario y
+  // el envío. El costo del producto no es del negocio, así que no se cuenta.
+  gananciaMes: number;
+  gananciaMesPrev: number;
+  gananciaPedidos: number;
+  gananciaTienda: number;
+  vendidoMes: number;
+  // Productos de pedidos sin precio de compra: inflan la ganancia.
+  productosSinCosto: number;
 }
 
 export interface DashboardData {

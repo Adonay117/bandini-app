@@ -1,20 +1,6 @@
 import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { Transaccion } from '@/lib/types';
-import { formatCurrency, formatDateTime } from '@/lib/utils/formatters';
-
-const categoriaLabel: Record<string, string> = {
-  venta: 'Venta',
-  abono_pedido: 'Abono de pedido',
-  premio_sticker: 'Premio de sticker',
-  costo_embarque: 'Costo de embarque',
-  ajuste_costo_embarque: 'Ajuste de costo de embarque',
-  compra_pedido: 'Compra en plataforma',
-  ajuste_compra_pedido: 'Ajuste de compra en plataforma',
-  reembolso_plataforma: 'Reembolso de plataforma',
-  saldo_favor: 'Saldo a favor',
-  reembolso_pedido: 'Reembolso a cliente',
-  merma: 'Merma',
-};
+import { etiquetaCategoria, formatCurrency, formatDateTime } from '@/lib/utils/formatters';
 
 export function TransaccionesTable({ transacciones }: { transacciones: Transaccion[] }) {
   if (transacciones.length === 0) {
@@ -39,7 +25,7 @@ export function TransaccionesTable({ transacciones }: { transacciones: Transacci
               {t.tipo === 'ingreso' ? <ArrowUpCircle size={17} /> : <ArrowDownCircle size={17} />}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-ink">{categoriaLabel[t.categoria] ?? t.categoria ?? '—'}</p>
+              <p className="truncate text-sm font-medium text-ink">{etiquetaCategoria(t.categoria)}</p>
               <p className="text-xs text-muted-light">{formatDateTime(t.fecha)}</p>
             </div>
             <p className={`shrink-0 font-semibold ${t.tipo === 'ingreso' ? 'text-emerald-700' : 'text-red-700'}`}>
@@ -74,7 +60,7 @@ export function TransaccionesTable({ transacciones }: { transacciones: Transacci
                     </span>
                   )}
                 </td>
-                <td className="px-5 py-3 text-muted">{categoriaLabel[t.categoria] ?? t.categoria ?? '—'}</td>
+                <td className="px-5 py-3 text-muted">{etiquetaCategoria(t.categoria)}</td>
                 <td className="px-5 py-3 text-muted-light">{formatDateTime(t.fecha)}</td>
                 <td className={`px-5 py-3 text-right font-medium ${t.tipo === 'ingreso' ? 'text-emerald-700' : 'text-red-700'}`}>
                   {t.tipo === 'ingreso' ? '+' : '−'} {formatCurrency(t.monto)}

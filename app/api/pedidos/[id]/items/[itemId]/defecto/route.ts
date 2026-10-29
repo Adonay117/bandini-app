@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { borrarImagenesSinUso } from '@/lib/storage';
 
 // Ajuste del producto con el CLIENTE (no con la plataforma — eso son las
 // devoluciones del módulo de embarques):
@@ -79,6 +80,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // El producto de reemplazo trae su propia foto: la del original sobra.
+    if (item.imagen_url && item.imagen_url !== data.imagen_url) {
+      await borrarImagenesSinUso(supabase, [item.imagen_url]);
+    }
     return NextResponse.json(data);
   }
 

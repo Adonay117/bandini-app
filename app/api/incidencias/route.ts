@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { normalizarReposiciones } from '@/lib/utils/logistica';
 
 // Bandeja de incidencias con todo su contexto (producto, pedido, embarque,
 // devoluciones y reposiciones). Por defecto solo lo que requiere acción:
@@ -20,14 +21,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  const incidencias = normalizarReposiciones(data);
   const filtradas = todas
-    ? (data ?? [])
-    : (data ?? []).filter(
+    ? incidencias
+    : incidencias.filter(
         (i) =>
           i.estado === 'abierta' ||
           i.estado === 'en_reclamo' ||
-          (i.devoluciones ?? []).some((d: { reposiciones?: { estado: string }[] }) =>
-            (d.reposiciones ?? []).some((r) => r.estado === 'pendiente' || r.estado === 'en_transito')
+          i.devoluciones.some((d) =>
+            d.reposiciones.some((r) => r.estado === 'pendiente' || r.estado === 'en_transito')
           )
       );
 

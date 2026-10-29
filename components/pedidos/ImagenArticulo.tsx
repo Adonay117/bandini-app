@@ -1,30 +1,29 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import NextImage from 'next/image';
 import { Image as ImageIcon, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { comprimirImagen } from '@/lib/utils/image';
-import { pedirApi } from '@/lib/api';
+import { ImagenMiniatura } from '@/components/ui/ImagenMiniatura';
+import { useSubidasImagen } from '@/lib/hooks/useSubidasImagen';
+import { subirImagen } from '@/lib/utils/image';
 import { notificar } from '@/lib/notificar';
 
 export function ImagenArticulo({ imagenUrl, onImagenChange }: { imagenUrl: string; onImagenChange: (url: string) => void }) {
   const [subiendo, setSubiendo] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const subidas = useSubidasImagen();
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setSubiendo(true);
     try {
-      const comprimida = await comprimirImagen(file);
-      const formData = new FormData();
-      formData.append('file', comprimida);
-      formData.append('bucket', 'pedidos');
-      const { url: subida } = await notificar(
-        pedirApi<{ url: string }>('/api/upload', { method: 'POST', body: formData }, 'Error al subir la imagen'),
-        { cargando: 'Subiendo imagen…', exito: 'Imagen subida', error: 'No se pudo subir la imagen' }
-      );
+      const subida = await notificar(subirImagen(file, 'pedidos'), {
+        cargando: 'Subiendo imagen…',
+        exito: 'Imagen subida',
+        error: 'No se pudo subir la imagen',
+      });
+      subidas.registrar(subida);
       onImagenChange(subida);
     } catch {
       // el toast ya muestra el error
@@ -40,7 +39,7 @@ export function ImagenArticulo({ imagenUrl, onImagenChange }: { imagenUrl: strin
         {subiendo ? (
           <Loader2 size={16} className="animate-spin text-muted-light" />
         ) : imagenUrl ? (
-          <NextImage src={imagenUrl} alt="" width={56} height={56} className="h-full w-full object-cover" unoptimized />
+          <ImagenMiniatura src={imagenUrl} size={56} />
         ) : (
           <ImageIcon size={18} className="text-muted-light" />
         )}
@@ -77,7 +76,7 @@ export function MiniaturaArticulo({ src, size = 44 }: { src?: string | null; siz
       style={{ width: size, height: size }}
     >
       {src ? (
-        <NextImage src={src} alt="" width={size} height={size} className="h-full w-full object-cover" unoptimized />
+        <ImagenMiniatura src={src} size={size} />
       ) : (
         <ImageIcon size={15} className="text-muted-light" />
       )}

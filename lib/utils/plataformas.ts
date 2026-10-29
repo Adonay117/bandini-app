@@ -14,8 +14,8 @@ export interface EstiloPlataforma {
 // siendo texto libre, no una lista cerrada.
 const ESTILOS: Record<string, EstiloPlataforma> = {
   shein: { clases: 'bg-purple-50 text-purple-700', emoji: '💜', logo: '/plataformas/shein.svg', color: '#9333ea' },
-  temu: { clases: 'bg-orange-50 text-orange-700', emoji: '🧡', logo: '/plataformas/temu.webp', color: '#ea580c' },
-  amazon: { clases: 'bg-sky-50 text-sky-700', emoji: '🖤', logo: '/plataformas/amazon.webp', color: '#0284c7' },
+  temu: { clases: 'bg-orange-50 text-orange-700', emoji: '🧡', logo: '/plataformas/temu.svg', color: '#ea580c' },
+  amazon: { clases: 'bg-sky-50 text-sky-700', emoji: '🖤', logo: '/plataformas/amazon.svg', color: '#0284c7' },
   shopee: { clases: 'bg-amber-50 text-amber-700', emoji: '🟠', logo: '/plataformas/shopee.svg', color: '#d97706' },
 };
 
@@ -24,6 +24,19 @@ const ESTILO_DEFAULT: EstiloPlataforma = { clases: 'bg-surface text-muted', emoj
 export function estiloPlataforma(plataforma: string): EstiloPlataforma {
   const clave = plataforma.trim().toLowerCase();
   return ESTILOS[clave] ?? ESTILO_DEFAULT;
+}
+
+const NOMBRES: Record<string, string> = {
+  shein: 'Shein',
+  temu: 'Temu',
+  amazon: 'Amazon',
+  shopee: 'Shopee',
+  otras: 'Otras',
+};
+
+export function nombrePlataforma(plataforma: string): string {
+  const clave = plataforma.trim().toLowerCase();
+  return NOMBRES[clave] ?? plataforma.charAt(0).toUpperCase() + plataforma.slice(1);
 }
 
 // Plataformas "conocidas" con marca propia — cualquier otra cae en el

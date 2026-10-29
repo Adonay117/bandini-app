@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { ESTADOS_PEDIDO_MANUALES, permitidoSinProductos } from '@/lib/utils/pedidos';
-import { PLATAFORMAS, statusDeErrorDb } from '@/lib/utils/logistica';
+import { PLATAFORMAS, normalizarReposiciones, statusDeErrorDb } from '@/lib/utils/logistica';
 
 // Detalle completo del pedido con su trazabilidad: cada producto trae sus
 // cantidades derivadas (vista v_pedido_items_logistica) y las líneas de
@@ -62,14 +62,15 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const lineasPorItem = new Map<string, unknown[]>();
   const idsTrazables: string[] = [];
   for (const l of lineas.data ?? []) {
+    const incidencias = normalizarReposiciones(l.incidencias);
     const lista = lineasPorItem.get(l.pedido_item_id) ?? [];
-    lista.push({ ...l, costo_importacion: costoPorLinea.get(l.id) ?? 0 });
+    lista.push({ ...l, incidencias, costo_importacion: costoPorLinea.get(l.id) ?? 0 });
     lineasPorItem.set(l.pedido_item_id, lista);
-    for (const inc of l.incidencias ?? []) {
+    for (const inc of incidencias) {
       idsTrazables.push(inc.id);
-      for (const dev of inc.devoluciones ?? []) {
+      for (const dev of inc.devoluciones) {
         idsTrazables.push(dev.id);
-        for (const rep of dev.reposiciones ?? []) idsTrazables.push(rep.id);
+        for (const rep of dev.reposiciones) idsTrazables.push(rep.id);
       }
     }
   }

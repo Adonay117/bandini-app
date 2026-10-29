@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { ImagenMiniatura } from '@/components/ui/ImagenMiniatura';
 import { Package } from 'lucide-react';
 
 interface Props {
@@ -14,7 +14,7 @@ export function ProductoThumb({ src, size = 40, className = '' }: Props) {
       style={{ width: size, height: size }}
     >
       {src ? (
-        <Image src={src} alt="" width={size} height={size} className="h-full w-full object-cover" unoptimized />
+        <ImagenMiniatura src={src} size={size} />
       ) : (
         <Package size={Math.round(size * 0.38)} className="text-muted-light" />
       )}

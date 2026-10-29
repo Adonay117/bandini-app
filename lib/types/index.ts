@@ -43,7 +43,7 @@ export interface Producto {
   precio_venta: number;
   stock_actual: number;
   stock_minimo: number;
-  imagen_url?: string;
+  imagen_url?: string | null;
   activo: boolean;
 }
 

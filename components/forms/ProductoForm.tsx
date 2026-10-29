@@ -2,13 +2,14 @@
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { Check, ImagePlus, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { ImagenMiniatura } from '@/components/ui/ImagenMiniatura';
 import { Input } from '@/components/ui/Input';
 import { useProductos } from '@/lib/hooks/useProductos';
+import { useSubidasImagen } from '@/lib/hooks/useSubidasImagen';
 import { Producto } from '@/lib/types';
-import { comprimirImagen } from '@/lib/utils/image';
+import { subirImagen } from '@/lib/utils/image';
 import { notificar } from '@/lib/notificar';
 
 export function ProductoForm({ producto, onGuardado }: { producto?: Producto; onGuardado?: () => void }) {
@@ -16,6 +17,7 @@ export function ProductoForm({ producto, onGuardado }: { producto?: Producto; on
   const { crearProducto, actualizarProducto } = useProductos();
   const editando = producto !== undefined;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const subidas = useSubidasImagen();
 
   const [sku, setSku] = useState(producto?.sku ?? '');
   const [nombre, setNombre] = useState(producto?.nombre ?? '');
@@ -52,17 +54,12 @@ export function ProductoForm({ producto, onGuardado }: { producto?: Producto; on
     setSubiendoImagen(true);
     setError(null);
     try {
-      const comprimida = await comprimirImagen(file);
-      const formData = new FormData();
-      formData.append('file', comprimida);
-      const { url } = await notificar(
-        async () => {
-          const res = await fetch('/api/upload', { method: 'POST', body: formData });
-          if (!res.ok) throw new Error((await res.json()).error ?? 'Error al subir la imagen');
-          return (await res.json()) as { url: string };
-        },
-        { cargando: 'Subiendo imagen…', exito: 'Imagen subida', error: 'No se pudo subir la imagen' }
-      );
+      const url = await notificar(subirImagen(file, 'productos'), {
+        cargando: 'Subiendo imagen…',
+        exito: 'Imagen subida',
+        error: 'No se pudo subir la imagen',
+      });
+      subidas.registrar(url);
       setImagenUrl(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al subir la imagen');
@@ -86,7 +83,8 @@ export function ProductoForm({ producto, onGuardado }: { producto?: Producto; on
         precio_costo: Number(precioCosto),
         precio_venta: Number(precioVenta),
         stock_minimo: Number(stockMinimo),
-        imagen_url: imagenUrl || undefined,
+        // Al editar, null quita la imagen guardada (undefined no la tocaría).
+        imagen_url: imagenUrl || (editando ? null : undefined),
       };
 
       if (editando) {
@@ -124,7 +122,7 @@ export function ProductoForm({ producto, onGuardado }: { producto?: Producto; on
             {subiendoImagen ? (
               <Loader2 size={18} className="animate-spin text-muted-light" />
             ) : imagenUrl ? (
-              <Image src={imagenUrl} alt="" width={80} height={80} className="h-full w-full object-cover" unoptimized />
+              <ImagenMiniatura src={imagenUrl} size={80} />
             ) : (
               <ImagePlus size={20} className="text-muted-light" />
             )}

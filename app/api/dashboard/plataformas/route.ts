@@ -3,9 +3,13 @@ import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { anioActual, mesesDelAnio } from '@/lib/utils/charts';
 import { PLATAFORMAS_PRINCIPALES } from '@/lib/utils/plataformas';
 
-// Comparativa mensual (enero-diciembre) de ingresos por plataforma
-// (Shein/Temu/Amazon) para un año dado. Se agrega en JS a partir
-// de pedido_items — no hay una vista SQL porque el volumen de pedidos es chico.
+// Una cotización todavía no es una venta y un cancelado no movió producto.
+const ESTADOS_SIN_GANANCIA = ['cotizacion', 'cancelado'];
+
+// Comparativa mensual (enero-diciembre) de la ganancia neta por plataforma
+// (Shein/Temu/Amazon) para un año dado: lo vendido menos lo pagado en la
+// plataforma y el envío (vista v_pedidos_rentabilidad). Lo que el cliente paga
+// por el producto se queda en la plataforma, así que no se cuenta como ingreso.
 // La plataforma vive en el pedido; pedido_items.plataforma_origen solo se usa
 // para pedidos viejos que quedaron sin plataforma asignada.
 
@@ -29,7 +33,8 @@ export async function GET(request: NextRequest) {
     .from('pedidos')
     .select('id, fecha_creacion, plataforma')
     .gte('fecha_creacion', iso(desde))
-    .lte('fecha_creacion', iso(hasta));
+    .lte('fecha_creacion', iso(hasta))
+    .not('estado', 'in', `(${ESTADOS_SIN_GANANCIA.join(',')})`);
 
   if (errPedidos) {
     return NextResponse.json({ error: errPedidos.message }, { status: 500 });
@@ -45,26 +50,41 @@ export async function GET(request: NextRequest) {
 
   const idsPedidos = [...mesPorPedido.keys()];
 
-  const { data: items, error: errItems } =
+  const [items, rentabilidad] =
     idsPedidos.length === 0
-      ? { data: [], error: null }
-      : await supabase.from('pedido_items').select('pedido_id, plataforma_origen, precio_venta, cantidad, monto_reembolsado').in('pedido_id', idsPedidos);
+      ? [
+          { data: [], error: null },
+          { data: [], error: null },
+        ]
+      : await Promise.all([
+          // Solo para la plataforma de los pedidos viejos sin plataforma.
+          supabase.from('pedido_items').select('pedido_id, plataforma_origen').in('pedido_id', idsPedidos),
+          supabase.from('v_pedidos_rentabilidad').select('pedido_id, ganancia').in('pedido_id', idsPedidos),
+        ]);
 
-  if (errItems) {
-    return NextResponse.json({ error: errItems.message }, { status: 500 });
+  const errConsulta = items.error ?? rentabilidad.error;
+  if (errConsulta) {
+    return NextResponse.json({ error: errConsulta.message }, { status: 500 });
+  }
+
+  const origenPorPedido = new Map<string, string | null>();
+  for (const it of items.data ?? []) {
+    if (!origenPorPedido.has(it.pedido_id)) origenPorPedido.set(it.pedido_id, it.plataforma_origen);
   }
 
   const plataformasEncontradas = new Set<string>();
-  // mes -> plataforma -> total
+  // mes -> plataforma -> ganancia
   const acumulado = new Map<string, Map<string, number>>(meses.map((m) => [m, new Map()]));
 
-  for (const it of items ?? []) {
-    const mes = mesPorPedido.get(it.pedido_id);
+  for (const renta of rentabilidad.data ?? []) {
+    const mes = mesPorPedido.get(renta.pedido_id);
     if (!mes) continue;
-    const plataforma = normalizarPlataforma(plataformaPorPedido.get(it.pedido_id) ?? it.plataforma_origen);
+    const plataforma = normalizarPlataforma(
+      plataformaPorPedido.get(renta.pedido_id) ?? origenPorPedido.get(renta.pedido_id) ?? null
+    );
     plataformasEncontradas.add(plataforma);
     const porMes = acumulado.get(mes)!;
-    porMes.set(plataforma, (porMes.get(plataforma) ?? 0) + Number(it.precio_venta) * it.cantidad - Number(it.monto_reembolsado));
+    porMes.set(plataforma, (porMes.get(plataforma) ?? 0) + Number(renta.ganancia));
   }
 
   // Orden fijo con las 4 principales siempre presentes (aunque no tengan
