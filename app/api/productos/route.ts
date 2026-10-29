@@ -129,8 +129,13 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    const status = error.code === '23505' ? 409 : 500;
-    return NextResponse.json({ error: error.message }, { status });
+    if (error.code === '23505') {
+      return NextResponse.json(
+        { error: `Ya existe un producto con el SKU "${sku}". Usa un código diferente.` },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json(data, { status: 201 });

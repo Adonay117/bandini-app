@@ -69,6 +69,7 @@ const CATEGORIAS_TRANSACCION: Record<string, string> = {
   saldo_favor: 'Saldo a favor',
   reembolso_pedido: 'Reembolso a cliente',
   merma: 'Merma',
+  abastecimiento: 'Abastecimiento de inventario',
 };
 
 export function etiquetaCategoria(categoria: string | null | undefined): string {

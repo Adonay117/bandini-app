@@ -35,6 +35,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     .single();
 
   if (error) {
+    if (error.code === '23505') {
+      return NextResponse.json(
+        { error: `Ya existe otro producto con el SKU "${body.sku}". Usa un código diferente.` },
+        { status: 409 }
+      );
+    }
     const status = error.code === 'PGRST116' ? 404 : 500;
     return NextResponse.json({ error: error.message }, { status });
   }
