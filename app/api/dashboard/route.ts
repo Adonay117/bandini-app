@@ -130,6 +130,8 @@ export async function GET(request: NextRequest) {
     movimientos: [] as { tipo: 'ingreso' | 'egreso'; categoria: string | null; monto: number }[],
     gananciaPedidos: 0,
     gananciaTienda: 0,
+    ventasPedidos: 0,
+    ventasTienda: 0,
   }));
 
   // Las consultas de ganancia traen el mes pedido y el anterior (para el
@@ -150,7 +152,10 @@ export async function GET(request: NextRequest) {
       ganancia.vendido += Number(renta.ventas);
       ganancia.productosSinCosto += Number(renta.productos_sin_costo);
       const dia = dias[new Date(p.fecha_creacion).getDate() - 1];
-      if (dia) dia.gananciaPedidos += g;
+      if (dia) {
+        dia.gananciaPedidos += g;
+        dia.ventasPedidos += Number(renta.ventas);
+      }
     } else {
       ganancia.pedidosPrev += g;
     }
@@ -167,7 +172,10 @@ export async function GET(request: NextRequest) {
       ganancia.tienda += g;
       ganancia.vendido += Number(v.total);
       const dia = dias[new Date(fecha).getDate() - 1];
-      if (dia) dia.gananciaTienda += g;
+      if (dia) {
+        dia.gananciaTienda += g;
+        dia.ventasTienda += Number(v.total);
+      }
     } else {
       ganancia.tiendaPrev += g;
     }

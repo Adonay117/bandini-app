@@ -114,6 +114,7 @@ export default function DashboardPage() {
             onCambiarAnio={setAnioPlataformas}
             plataformas={dataPlataformas.plataformas}
             datos={dataPlataformas.datos}
+            datosVentas={dataPlataformas.datosVentas}
             cargando={cargandoPlataformas}
           />
         )}

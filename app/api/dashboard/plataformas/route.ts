@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       : await Promise.all([
           // Solo para la plataforma de los pedidos viejos sin plataforma.
           supabase.from('pedido_items').select('pedido_id, plataforma_origen').in('pedido_id', idsPedidos),
-          supabase.from('v_pedidos_rentabilidad').select('pedido_id, ganancia').in('pedido_id', idsPedidos),
+          supabase.from('v_pedidos_rentabilidad').select('pedido_id, ganancia, ventas').in('pedido_id', idsPedidos),
         ]);
 
   const errConsulta = items.error ?? rentabilidad.error;
@@ -75,6 +75,8 @@ export async function GET(request: NextRequest) {
   const plataformasEncontradas = new Set<string>();
   // mes -> plataforma -> ganancia
   const acumulado = new Map<string, Map<string, number>>(meses.map((m) => [m, new Map()]));
+  // mes -> plataforma -> precio de venta (lo que se le cobró al cliente)
+  const acumuladoVentas = new Map<string, Map<string, number>>(meses.map((m) => [m, new Map()]));
 
   for (const renta of rentabilidad.data ?? []) {
     const mes = mesPorPedido.get(renta.pedido_id);
@@ -85,6 +87,8 @@ export async function GET(request: NextRequest) {
     plataformasEncontradas.add(plataforma);
     const porMes = acumulado.get(mes)!;
     porMes.set(plataforma, (porMes.get(plataforma) ?? 0) + Number(renta.ganancia));
+    const ventasMes = acumuladoVentas.get(mes)!;
+    ventasMes.set(plataforma, (ventasMes.get(plataforma) ?? 0) + Number(renta.ventas));
   }
 
   // Orden fijo con las 4 principales siempre presentes (aunque no tengan
@@ -95,18 +99,25 @@ export async function GET(request: NextRequest) {
     ...(plataformasEncontradas.has('otras') ? ['otras'] : []),
   ];
 
-  const datos = meses.map((mes) => {
-    const porMes = acumulado.get(mes)!;
-    const fila: Record<string, number | string> = { mes };
-    let total = 0;
-    for (const p of plataformas) {
-      const monto = porMes.get(p) ?? 0;
-      fila[p] = monto;
-      total += monto;
-    }
-    fila.total = total;
-    return fila;
-  });
+  const armarFilas = (fuente: Map<string, Map<string, number>>) =>
+    meses.map((mes) => {
+      const porMes = fuente.get(mes)!;
+      const fila: Record<string, number | string> = { mes };
+      let total = 0;
+      for (const p of plataformas) {
+        const monto = porMes.get(p) ?? 0;
+        fila[p] = monto;
+        total += monto;
+      }
+      fila.total = total;
+      return fila;
+    });
 
-  return NextResponse.json({ anio, meses, plataformas, datos });
+  return NextResponse.json({
+    anio,
+    meses,
+    plataformas,
+    datos: armarFilas(acumulado),
+    datosVentas: armarFilas(acumuladoVentas),
+  });
 }

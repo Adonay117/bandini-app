@@ -18,6 +18,9 @@ export interface DiaDashboard {
   // fecha de la venta.
   gananciaPedidos: number;
   gananciaTienda: number;
+  // Precio de venta del día (lo cobrado al cliente), mismas fechas que la ganancia.
+  ventasPedidos: number;
+  ventasTienda: number;
 }
 
 export interface ProductoTop {

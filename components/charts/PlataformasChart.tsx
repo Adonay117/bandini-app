@@ -20,10 +20,19 @@ const GAP = 2;
 const RADIO = 4;
 const ANCHO_TOOLTIP = 210;
 
+type Metrica = 'ganancia' | 'ventas';
+
+const METRICAS: { clave: Metrica; label: string }[] = [
+  { clave: 'ganancia', label: 'Ganancia' },
+  { clave: 'ventas', label: 'Precio venta' },
+];
+
 interface Fila {
   mes: string;
   total: number;
   valores: Record<string, number>;
+  /** Total del mes en la otra métrica, para compararlo en el tooltip. */
+  totalOtro: number;
   futuro: boolean;
 }
 
@@ -48,22 +57,28 @@ interface Props {
   onCambiarAnio: (anio: number) => void;
   plataformas: string[];
   datos: MesPlataformas[];
+  datosVentas: MesPlataformas[];
   cargando?: boolean;
 }
 
-export function PlataformasChart({ anio, onCambiarAnio, plataformas, datos, cargando = false }: Props) {
+export function PlataformasChart({ anio, onCambiarAnio, plataformas, datos, datosVentas, cargando = false }: Props) {
   const [resaltada, setResaltada] = useState<string | null>(null);
   const [vista, setVista] = useState<'grafico' | 'tabla'>('grafico');
+  const [metrica, setMetrica] = useState<Metrica>('ganancia');
+  const esVentas = metrica === 'ventas';
 
   const filas: Fila[] = useMemo(() => {
     const hoy = mesActual();
-    return datos.map((d) => ({
+    const principal = esVentas ? datosVentas : datos;
+    const otro = esVentas ? datos : datosVentas;
+    return principal.map((d, i) => ({
       mes: d.mes,
       total: Number(d.total),
       valores: Object.fromEntries(plataformas.map((p) => [p, Number(d[p] ?? 0)])),
+      totalOtro: Number(otro[i]?.total ?? 0),
       futuro: d.mes > hoy,
     }));
-  }, [datos, plataformas]);
+  }, [datos, datosVentas, plataformas, esVentas]);
 
   // Un pedido puede dejar pérdida: los porcentajes se calculan solo sobre
   // las plataformas que dejaron ganancia en el año.
@@ -87,7 +102,22 @@ export function PlataformasChart({ anio, onCambiarAnio, plataformas, datos, carg
   const lider = resumen.reduce((a, b) => (b.total > a.total ? b : a), resumen[0]);
 
   const acciones = (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center rounded-lg border border-border bg-white p-1" role="group" aria-label="Métrica">
+        {METRICAS.map((m) => (
+          <button
+            key={m.clave}
+            type="button"
+            onClick={() => setMetrica(m.clave)}
+            aria-pressed={metrica === m.clave}
+            className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              metrica === m.clave ? 'bg-surface text-ink' : 'text-muted-light hover:text-muted'
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
       <div className="flex items-center rounded-lg border border-border bg-white p-1" role="group" aria-label="Vista">
         {(
           [
@@ -135,11 +165,19 @@ export function PlataformasChart({ anio, onCambiarAnio, plataformas, datos, carg
 
   const subtitulo =
     totalPositivo > 0 && lider
-      ? `${nombrePlataforma(lider.plataforma)} deja el ${Math.round(lider.pct * 100)}% de la ganancia de ${anio}`
-      : `Ya descontado lo pagado en la plataforma y el envío · ${anio}`;
+      ? esVentas
+        ? `${nombrePlataforma(lider.plataforma)} suma el ${Math.round(lider.pct * 100)}% del precio de venta de ${anio}`
+        : `${nombrePlataforma(lider.plataforma)} deja el ${Math.round(lider.pct * 100)}% de la ganancia de ${anio}`
+      : esVentas
+        ? `Lo cobrado al cliente, sin descontar costos · ${anio}`
+        : `Ya descontado lo pagado en la plataforma y el envío · ${anio}`;
 
   return (
-    <ChartCard title="Ganancia por plataforma" subtitle={subtitulo} actions={acciones}>
+    <ChartCard
+      title={esVentas ? 'Precio de venta por plataforma' : 'Ganancia por plataforma'}
+      subtitle={subtitulo}
+      actions={acciones}
+    >
       <div className={`transition-opacity duration-200 ${cargando ? 'pointer-events-none opacity-60' : ''}`}>
         {!hayDatos ? (
           <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-border">
@@ -154,6 +192,7 @@ export function PlataformasChart({ anio, onCambiarAnio, plataformas, datos, carg
                 <TarjetaPlataforma
                   key={r.plataforma}
                   {...r}
+                  esVentas={esVentas}
                   activa={resaltada === r.plataforma}
                   atenuada={resaltada != null && resaltada !== r.plataforma}
                   onClick={() => setResaltada((prev) => (prev === r.plataforma ? null : r.plataforma))}
@@ -163,7 +202,13 @@ export function PlataformasChart({ anio, onCambiarAnio, plataformas, datos, carg
 
             <div className="mt-6">
               {vista === 'grafico' ? (
-                <ColumnasApiladas filas={filas} plataformas={plataformas} resaltada={resaltada} anio={anio} />
+                <ColumnasApiladas
+                  filas={filas}
+                  plataformas={plataformas}
+                  resaltada={resaltada}
+                  anio={anio}
+                  esVentas={esVentas}
+                />
               ) : (
                 <TablaPlataformas filas={filas} plataformas={plataformas} />
               )}
@@ -184,6 +229,7 @@ interface TarjetaProps {
   serie: number[];
   mejorMes: Fila | null;
   mejorMonto: number;
+  esVentas: boolean;
   activa: boolean;
   atenuada: boolean;
   onClick: () => void;
@@ -192,7 +238,18 @@ interface TarjetaProps {
 const SPARK_W = 120;
 const SPARK_H = 36;
 
-function TarjetaPlataforma({ plataforma, total, pct, serie, mejorMes, mejorMonto, activa, atenuada, onClick }: TarjetaProps) {
+function TarjetaPlataforma({
+  plataforma,
+  total,
+  pct,
+  serie,
+  mejorMes,
+  mejorMonto,
+  esVentas,
+  activa,
+  atenuada,
+  onClick,
+}: TarjetaProps) {
   const c = color(plataforma);
 
   const x = scaleLinear()
@@ -281,7 +338,7 @@ function TarjetaPlataforma({ plataforma, total, pct, serie, mejorMes, mejorMonto
             {formatCurrencyCompacto(mejorMonto)}
           </>
         ) : (
-          'Sin ganancia este año'
+          esVentas ? 'Sin ventas este año' : 'Sin ganancia este año'
         )}
       </p>
     </button>
@@ -295,9 +352,10 @@ interface ColumnasProps {
   plataformas: string[];
   resaltada: string | null;
   anio: number;
+  esVentas: boolean;
 }
 
-function ColumnasApiladas({ filas, plataformas, resaltada, anio }: ColumnasProps) {
+function ColumnasApiladas({ filas, plataformas, resaltada, anio, esVentas }: ColumnasProps) {
   const { ref, ancho } = useAnchoElemento<HTMLDivElement>();
   const [activo, setActivo] = useState<number | null>(null);
 
@@ -332,7 +390,7 @@ function ColumnasApiladas({ filas, plataformas, resaltada, anio }: ColumnasProps
   return (
     <div ref={ref} className="relative" style={{ height: altoTotal }}>
       {ancho > 0 && (
-        <svg width={ancho} height={altoTotal} role="img" aria-label={`Ganancia mensual por plataforma en ${anio}`}>
+        <svg width={ancho} height={altoTotal} role="img" aria-label={`${esVentas ? 'Precio de venta' : 'Ganancia'} mensual por plataforma en ${anio}`}>
           <g transform={`translate(${MARGEN.izquierda},${MARGEN.arriba})`}>
             {ticks.map((t) => (
               <g key={t} transform={`translate(0,${y(t)})`}>
@@ -477,11 +535,19 @@ function ColumnasApiladas({ filas, plataformas, resaltada, anio }: ColumnasProps
               );
             })}
           </ul>
-          <div className="mt-2 flex justify-between border-t border-border pt-2 text-xs">
-            <span className="text-muted">Ganancia</span>
-            <span className={`font-semibold tabular-nums ${filaActiva.total < 0 ? 'text-negative' : 'text-ink'}`}>
-              {formatCurrency(filaActiva.total)}
-            </span>
+          <div className="mt-2 flex flex-col gap-1 border-t border-border pt-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted">{esVentas ? 'Precio venta' : 'Ganancia'}</span>
+              <span className={`font-semibold tabular-nums ${filaActiva.total < 0 ? 'text-negative' : 'text-ink'}`}>
+                {formatCurrency(filaActiva.total)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-light">{esVentas ? 'Ganancia' : 'Precio venta'}</span>
+              <span className={`tabular-nums ${filaActiva.totalOtro < 0 ? 'text-negative' : 'text-muted'}`}>
+                {formatCurrency(filaActiva.totalOtro)}
+              </span>
+            </div>
           </div>
         </div>
       )}

@@ -16,6 +16,18 @@ const SERIES = [
 ] as const;
 
 type Clave = (typeof SERIES)[number]['clave'];
+type Metrica = 'ganancia' | 'ventas';
+
+const METRICAS: { clave: Metrica; label: string }[] = [
+  { clave: 'ganancia', label: 'Ganancia' },
+  { clave: 'ventas', label: 'Precio venta' },
+];
+
+/** Valor del día de una fuente según la métrica elegida. */
+function valorDia(d: DiaDashboard, clave: Clave, metrica: Metrica): number {
+  if (metrica === 'ganancia') return d[clave];
+  return clave === 'gananciaTienda' ? d.ventasTienda : d.ventasPedidos;
+}
 
 const ALTO_PLOT = 140;
 const MARGEN = { arriba: 10, derecha: 8, abajo: 22, izquierda: 44 };
@@ -41,6 +53,8 @@ interface Props {
 // hacia abajo sin trucos de apilado.
 export function ComposicionGananciaChart({ mes, mesLabel, dias }: Props) {
   const [activo, setActivo] = useState<number | null>(null);
+  const [metrica, setMetrica] = useState<Metrica>('ganancia');
+  const esVentas = metrica === 'ventas';
   const { ref, ancho } = useAnchoElemento<HTMLDivElement>();
 
   // En el mes en curso las líneas se cortan hoy: los días que faltan no son 0.
@@ -52,17 +66,22 @@ export function ComposicionGananciaChart({ mes, mesLabel, dias }: Props) {
   const puntos: Punto[] = useMemo(() => {
     const acum: Record<Clave, number> = { gananciaTienda: 0, gananciaPedidos: 0 };
     return dias.slice(0, ultimoDia).map((d) => {
-      for (const s of SERIES) acum[s.clave] += d[s.clave];
+      for (const s of SERIES) acum[s.clave] += valorDia(d, s.clave, metrica);
       return {
         dia: d.dia,
-        delDia: { gananciaTienda: d.gananciaTienda, gananciaPedidos: d.gananciaPedidos },
+        delDia: {
+          gananciaTienda: valorDia(d, 'gananciaTienda', metrica),
+          gananciaPedidos: valorDia(d, 'gananciaPedidos', metrica),
+        },
         acumulado: { ...acum },
       };
     });
-  }, [dias, ultimoDia]);
+  }, [dias, ultimoDia, metrica]);
 
   const final = puntos[puntos.length - 1]?.acumulado ?? { gananciaTienda: 0, gananciaPedidos: 0 };
-  const conMovimiento = dias.some((d) => d.gananciaTienda !== 0 || d.gananciaPedidos !== 0);
+  const conMovimiento = dias.some(
+    (d) => d.gananciaTienda !== 0 || d.gananciaPedidos !== 0 || d.ventasTienda !== 0 || d.ventasPedidos !== 0
+  );
 
   // Participación solo sobre lo que sí dejó ganancia (una fuente en pérdida no "aporta" %).
   const positivo = SERIES.map((s) => Math.max(final[s.clave], 0));
@@ -110,7 +129,31 @@ export function ComposicionGananciaChart({ mes, mesLabel, dias }: Props) {
   }
 
   return (
-    <ChartCard title="De dónde viene la ganancia" subtitle={`Acumulado del mes, ya descontado el costo · ${mesLabel}`}>
+    <ChartCard
+      title={esVentas ? 'De dónde viene la venta' : 'De dónde viene la ganancia'}
+      subtitle={
+        esVentas
+          ? `Acumulado del mes, precio de venta sin descontar costo · ${mesLabel}`
+          : `Acumulado del mes, ya descontado el costo · ${mesLabel}`
+      }
+      actions={
+        <div className="flex items-center rounded-lg border border-border bg-white p-1" role="group" aria-label="Métrica">
+          {METRICAS.map((m) => (
+            <button
+              key={m.clave}
+              type="button"
+              onClick={() => setMetrica(m.clave)}
+              aria-pressed={metrica === m.clave}
+              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                metrica === m.clave ? 'bg-surface text-ink' : 'text-muted-light hover:text-muted'
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      }
+    >
       {!conMovimiento ? (
         <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-border">
           <p className="text-sm text-muted-light">Sin ventas ni pedidos este mes.</p>
@@ -270,7 +313,9 @@ export function ComposicionGananciaChart({ mes, mesLabel, dias }: Props) {
 
           {/* Los mismos datos sin depender del color ni del hover. */}
           <table className="sr-only">
-            <caption>Ganancia acumulada por día de {mesLabel}</caption>
+            <caption>
+              {esVentas ? 'Precio de venta' : 'Ganancia'} acumulado por día de {mesLabel}
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Día</th>
