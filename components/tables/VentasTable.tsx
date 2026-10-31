@@ -12,15 +12,16 @@ export function VentasTable({ ventas }: { ventas: Venta[] }) {
         return (
           <li
             key={v.id}
-            className="flex items-start gap-3 rounded-xl border border-border bg-white px-3 py-3 shadow-[var(--shadow-card)] sm:px-4"
+            className="relative flex items-start gap-3 rounded-xl border border-border bg-white px-3 py-3 shadow-[var(--shadow-card)] transition-colors hover:border-primary/40 sm:px-4"
           >
+            <Link href={`/ventas/${v.id}`} aria-label="Ver detalle de la venta" className="absolute inset-0 rounded-xl" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-ink">
                 {v.items.map((i) => i.producto_nombre ?? 'Producto eliminado').join(', ')}
               </p>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-light">
                 {v.cliente_id && v.cliente_nombre ? (
-                  <Link href={`/clientes/${v.cliente_id}`} className="font-medium text-primary hover:underline">
+                  <Link href={`/clientes/${v.cliente_id}`} className="relative z-10 font-medium text-primary hover:underline">
                     {v.cliente_nombre}
                   </Link>
                 ) : (
@@ -35,8 +36,11 @@ export function VentasTable({ ventas }: { ventas: Venta[] }) {
             <div className="shrink-0 text-right">
               <p className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(v.total)}</p>
               <p className="text-[11px] text-muted-light tabular-nums">
-                {unidades} artículo{unidades === 1 ? '' : 's'}
+                {v.items.length} producto{v.items.length === 1 ? '' : 's'}
               </p>
+              {unidades !== v.items.length && (
+                <p className="text-[11px] text-muted-light tabular-nums">{unidades} unidades</p>
+              )}
               {descuentoTotal > 0 && (
                 <p className="text-[11px] text-warning tabular-nums">−{formatCurrency(descuentoTotal)} desc.</p>
               )}
