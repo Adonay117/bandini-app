@@ -42,5 +42,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  // Públicos (sin login): assets, PWA (sw, manifest, íconos) y el webhook de push,
+  // que se autentica con su propio secreto.
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|sw\\.js|manifest\\.webmanifest|icons/|api/push/enviar|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 };

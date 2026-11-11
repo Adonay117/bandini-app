@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Menu } from 'lucide-react';
 
 // Barra superior solo para móvil: en desktop la navegación y la cuenta viven
@@ -15,7 +16,14 @@ export function Navbar({ onMenuClick }: { onMenuClick: () => void }) {
       >
         <Menu size={20} />
       </button>
-      <span className="text-[15px] font-semibold tracking-tight">Bandini</span>
+      <Image
+        src="/logo-bandini-blanco.png"
+        alt="Bandini SV"
+        width={1000}
+        height={294}
+        priority
+        className="h-auto w-[104px]"
+      />
     </header>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { FocusEvent, MouseEvent, useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -208,12 +209,23 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         <div className={`relative flex h-full flex-col px-3 py-4 lg:py-5 ${c('lg:px-2')}`}>
           {/* Marca */}
           <div className={`mb-5 flex items-center gap-2.5 px-2 ${c('lg:justify-center lg:px-0')}`}>
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/12 text-base font-semibold">
+            {/* Colapsado queda solo la inicial; expandido, el logo completo. */}
+            <span
+              className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary font-[family-name:var(--font-sans)] text-lg font-bold text-primary ${c(
+                'lg:flex'
+              )}`}
+            >
               B
             </span>
             <div className={`min-w-0 flex-1 ${c('lg:hidden')}`}>
-              <p className="text-sm leading-tight font-semibold">Bandini</p>
-              <p className="text-[11px] leading-tight text-white/50">Panel de administración</p>
+              <Image
+                src="/logo-bandini-blanco.png"
+                alt="Bandini SV — Varieties & Imports"
+                width={1000}
+                height={294}
+                priority
+                className="h-auto w-[148px]"
+              />
             </div>
             <button
               type="button"

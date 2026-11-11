@@ -1,5 +1,5 @@
 const PALETA = [
-  { bg: '#ece8f6', fg: '#3f365b' },
+  { bg: '#e3d7fb', fg: '#4d4260' },
   { bg: '#e4f4ec', fg: '#1f8a5b' },
   { bg: '#fbf0e0', fg: '#b06f1e' },
   { bg: '#e8e3f6', fg: '#5a4b8a' },

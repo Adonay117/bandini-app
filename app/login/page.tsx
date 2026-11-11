@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Award, Boxes, Eye, EyeOff, Layers, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -46,27 +47,34 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Panel de marca — oculto en móvil, protagonista en escritorio */}
-      <div className="relative hidden w-[46%] flex-col justify-between overflow-hidden bg-primary p-12 text-white lg:flex">
+      <div className="relative hidden w-[48%] flex-col justify-between overflow-hidden bg-secondary p-12 text-primary lg:flex">
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              'radial-gradient(46rem 46rem at 10% -10%, rgba(216, 209, 241, 0.25), transparent 60%), radial-gradient(40rem 40rem at 100% 110%, rgba(63, 54, 91, 0.7), transparent 55%)',
+              'radial-gradient(40rem 40rem at 0% 0%, rgba(255, 255, 255, 0.55), transparent 60%), radial-gradient(36rem 36rem at 100% 100%, rgba(77, 66, 96, 0.18), transparent 60%)',
           }}
         />
 
-        <div className="relative text-sm font-semibold tracking-[0.3em] text-white/70">BANDINI SV</div>
+        <div className="relative" />
 
         <div className="relative">
-          <p className="mb-3 text-xs font-medium uppercase tracking-[0.25em] text-secondary/80">Varieties &amp; Imports</p>
-          <h2 className="max-w-sm text-3xl font-semibold leading-snug tracking-tight">
+          <Image
+            src="/logo-bandini.png"
+            alt="Bandini SV — Varieties & Imports"
+            width={1000}
+            height={294}
+            priority
+            className="h-auto w-full max-w-md"
+          />
+          <h2 className="mt-10 max-w-sm text-2xl leading-snug font-semibold tracking-tight">
             Gestiona tus variedades e importaciones desde un solo panel.
           </h2>
 
           <ul className="mt-8 flex flex-col gap-3">
             {features.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex items-center gap-3 text-sm text-white/80">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
+              <li key={text} className="flex items-center gap-3 text-sm text-primary/80">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/60">
                   <Icon size={15} />
                 </span>
                 {text}
@@ -75,15 +83,22 @@ export default function LoginPage() {
           </ul>
         </div>
 
-        <div className="relative text-xs text-white/50">© {new Date().getFullYear()} Bandini SV — Varieties &amp; Imports</div>
+        <div className="relative text-xs text-primary/60">© {new Date().getFullYear()} Bandini SV — Varieties &amp; Imports</div>
       </div>
 
       {/* Panel de formulario */}
       <div className="flex flex-1 items-center justify-center px-4 py-12">
         <div className="w-full max-w-sm">
           <div className="mb-8 text-center lg:text-left">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted lg:hidden">Bandini SV</p>
-            <h1 className="mt-2 text-xl font-semibold tracking-tight text-primary lg:mt-0">Bienvenido de nuevo</h1>
+            <Image
+              src="/logo-bandini.png"
+              alt="Bandini SV — Varieties & Imports"
+              width={1000}
+              height={294}
+              priority
+              className="mx-auto mb-6 h-auto w-56 lg:hidden"
+            />
+            <h1 className="text-xl font-semibold tracking-tight text-primary">Bienvenido de nuevo</h1>
             <p className="mt-1 text-sm text-muted">Ingresa a tu panel de administración</p>
           </div>
 
@@ -131,7 +146,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-negative">{error}</p>}
 
             <Button type="submit" disabled={submitting} className="mt-1 w-full py-2.5">
               {submitting ? 'Ingresando…' : 'Ingresar'}
