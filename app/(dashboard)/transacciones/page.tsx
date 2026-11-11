@@ -12,6 +12,8 @@ import { TransaccionesTable } from '@/components/tables/TransaccionesTable';
 import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
 import { Transaccion, TipoTransaccion } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils/formatters';
+import { pedirApi } from '@/lib/api';
+import { notificar } from '@/lib/notificar';
 
 export default function TransaccionesPage() {
   const [desde, setDesde] = useState('');
@@ -57,12 +59,20 @@ export default function TransaccionesPage() {
     setSubmitting(true);
     setFormError(null);
     try {
-      const res = await fetch('/api/transacciones', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo: tipoNuevo, monto: Number(monto), categoria: categoria.trim() || undefined }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Error al registrar transacción');
+      await notificar(
+        pedirApi(
+          '/api/transacciones',
+          {
+            method: 'POST',
+            body: JSON.stringify({ tipo: tipoNuevo, monto: Number(monto), categoria: categoria.trim() || undefined }),
+          },
+          'Error al registrar transacción'
+        ),
+        {
+          exito: `${tipoNuevo === 'ingreso' ? 'Ingreso' : 'Egreso'} de ${formatCurrency(Number(monto))} registrado`,
+          error: 'No se pudo registrar la transacción',
+        }
+      );
       setMonto('');
       setCategoria('');
       refetch();

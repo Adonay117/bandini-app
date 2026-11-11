@@ -8,6 +8,8 @@ import { Select } from '@/components/ui/Select';
 import { MovimientosList } from '@/components/productos/MovimientosList';
 import { MotivoMerma, Producto } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils/formatters';
+import { pedirApi } from '@/lib/api';
+import { notificar } from '@/lib/notificar';
 
 const MOTIVO_LABEL: Record<MotivoMerma, string> = {
   danado: 'Dañado',
@@ -40,13 +42,14 @@ export function ReportarMermaForm({
     setEnviando(true);
     setError(null);
     try {
-      const res = await fetch(`/api/productos/${producto.id}/movimientos/merma`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cantidad: Number(cantidad), motivo, nota: nota.trim() || undefined }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Error al reportar la merma');
-      const { producto: productoActualizado } = await res.json();
+      const { producto: productoActualizado } = await notificar(
+        pedirApi<{ producto: Producto }>(
+          `/api/productos/${producto.id}/movimientos/merma`,
+          { method: 'POST', body: JSON.stringify({ cantidad: Number(cantidad), motivo, nota: nota.trim() || undefined }) },
+          'Error al reportar la merma'
+        ),
+        { exito: `Merma de ${Number(cantidad)} unidad${Number(cantidad) === 1 ? '' : 'es'} reportada`, error: 'No se pudo reportar la merma' }
+      );
       setCantidad('');
       setNota('');
       onReportada(productoActualizado);

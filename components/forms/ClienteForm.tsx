@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/Select';
 import { useClientes } from '@/lib/hooks/useClientes';
 import { validarEmail, validarTelefono } from '@/lib/utils/validators';
 import { Cliente, DEPARTAMENTOS_SV } from '@/lib/types';
+import { notificar } from '@/lib/notificar';
 
 export function ClienteForm({ cliente, onGuardado }: { cliente?: Cliente; onGuardado?: () => void }) {
   const router = useRouter();
@@ -45,10 +46,17 @@ export function ClienteForm({ cliente, onGuardado }: { cliente?: Cliente; onGuar
       };
 
       if (editando) {
-        await actualizarCliente(cliente.id, payload);
+        await notificar(actualizarCliente(cliente.id, payload), {
+          exito: 'Cliente actualizado',
+          error: 'No se pudo actualizar el cliente',
+        });
         onGuardado?.();
       } else {
-        await crearCliente(payload);
+        await notificar(crearCliente(payload), {
+          cargando: 'Creando cliente…',
+          exito: (c) => `Cliente ${c.nombre} creado`,
+          error: 'No se pudo crear el cliente',
+        });
         router.push('/clientes');
       }
     } catch (err) {

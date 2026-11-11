@@ -8,7 +8,10 @@ import { ClienteAvatar } from '@/components/clientes/ClienteAvatar';
 import { StickerProgress } from '@/components/clientes/StickerProgress';
 import { useClientes } from '@/lib/hooks/useClientes';
 import { usePedidos } from '@/lib/hooks/usePedidos';
-import { Cliente } from '@/lib/types';
+import { Cliente, Plataforma } from '@/lib/types';
+import { PLATAFORMAS } from '@/lib/utils/logistica';
+import { PlataformaBadge } from '@/components/ui/PlataformaBadge';
+import { notificar } from '@/lib/notificar';
 
 export function PedidoForm() {
   const router = useRouter();
@@ -17,6 +20,7 @@ export function PedidoForm() {
 
   const [clienteQuery, setClienteQuery] = useState('');
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
+  const [plataforma, setPlataforma] = useState<Plataforma | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,16 +31,20 @@ export function PedidoForm() {
     return clientes.filter((c) => c.nombre.toLowerCase().includes(q) || c.telefono.includes(q)).slice(0, 6);
   }, [clienteQuery, clienteSeleccionado, clientes]);
 
-  const valido = clienteSeleccionado !== null;
+  const valido = clienteSeleccionado !== null && plataforma !== null;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!valido || !clienteSeleccionado) return;
+    if (!valido || !clienteSeleccionado || !plataforma) return;
 
     setSubmitting(true);
     setError(null);
     try {
-      const pedido = await crearPedido({ cliente_id: clienteSeleccionado.id });
+      const pedido = await notificar(crearPedido({ cliente_id: clienteSeleccionado.id, plataforma }), {
+        cargando: 'Creando pedido…',
+        exito: `Pedido creado para ${clienteSeleccionado.nombre}`,
+        error: 'No se pudo crear el pedido',
+      });
       router.push(`/pedidos/${pedido.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear pedido');
@@ -107,8 +115,30 @@ export function PedidoForm() {
         )}
       </div>
 
+      <fieldset>
+        <legend className="mb-1.5 block text-xs font-medium text-muted">Plataforma</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {PLATAFORMAS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPlataforma(p)}
+              aria-pressed={plataforma === p}
+              className={`flex min-h-11 items-center justify-center rounded-xl border px-2 py-2 transition-colors ${
+                plataforma === p
+                  ? 'border-primary bg-secondary/40 ring-2 ring-primary/20'
+                  : 'border-border bg-white hover:border-primary/30'
+              }`}
+            >
+              <PlataformaBadge plataforma={p} />
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-muted-light">Cada pedido es de una sola plataforma.</p>
+      </fieldset>
+
       <p className="text-xs text-muted-light">
-        El pedido se crea vacío. Agregá los artículos, sus precios y los abonos desde el detalle.
+        El pedido se crea vacío. Agregá los productos, sus precios y los abonos desde el detalle.
       </p>
 
       {error && (

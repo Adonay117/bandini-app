@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/Input';
 import { MovimientosList } from '@/components/productos/MovimientosList';
 import { Producto } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils/formatters';
+import { pedirApi } from '@/lib/api';
+import { notificar } from '@/lib/notificar';
 
 export function AbastecerInventarioForm({
   producto,
@@ -29,17 +31,21 @@ export function AbastecerInventarioForm({
     setEnviando(true);
     setError(null);
     try {
-      const res = await fetch(`/api/productos/${producto.id}/movimientos`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cantidad: Number(cantidad),
-          nota: nota.trim() || undefined,
-          costo_unitario: costoUnitario.trim() ? Number(costoUnitario) : undefined,
-        }),
-      });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Error al registrar la entrada');
-      const { producto: productoActualizado } = await res.json();
+      const { producto: productoActualizado } = await notificar(
+        pedirApi<{ producto: Producto }>(
+          `/api/productos/${producto.id}/movimientos`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              cantidad: Number(cantidad),
+              nota: nota.trim() || undefined,
+              costo_unitario: costoUnitario.trim() ? Number(costoUnitario) : undefined,
+            }),
+          },
+          'Error al registrar la entrada'
+        ),
+        { exito: `+${Number(cantidad)} unidades de ${producto.nombre}`, error: 'No se pudo registrar la entrada' }
+      );
       setCantidad('');
       setCostoUnitario('');
       setNota('');

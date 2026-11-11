@@ -13,6 +13,8 @@ export interface PlataformasDashboardData {
   meses: string[];
   plataformas: string[];
   datos: MesPlataformas[];
+  /** Mismo formato que `datos`, pero con el precio de venta en vez de la ganancia. */
+  datosVentas: MesPlataformas[];
 }
 
 export function usePlataformasDashboard(anio: number) {

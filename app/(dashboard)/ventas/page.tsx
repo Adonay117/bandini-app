@@ -44,7 +44,7 @@ interface ResumenVentas {
 }
 
 export default function VentasPage() {
-  const [rango, setRango] = useState<Rango>('mes');
+  const [rango, setRango] = useState<Rango>('hoy');
   const [search, setSearch] = useState('');
   const [metodoPago, setMetodoPago] = useState('');
 

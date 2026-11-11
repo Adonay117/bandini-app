@@ -1,6 +1,7 @@
 'use client';
 
 import { PartyPopper } from 'lucide-react';
+import { PushToggle } from '@/components/PushToggle';
 import { Loading } from '@/components/ui/Loading';
 import { NotificacionCard } from '@/components/cards/NotificacionCard';
 import { useNotificacionesAdmin } from '@/lib/hooks/useNotificacionesAdmin';
@@ -14,6 +15,8 @@ export default function NotificacionesPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-ink">Notificaciones</h1>
         <p className="mt-1 text-sm text-muted">Mensajes listos para copiar y enviar por WhatsApp.</p>
       </div>
+
+      <PushToggle />
 
       {loading && <Loading label="Cargando notificaciones…" />}
       {error && <p className="text-sm text-red-600">{error}</p>}
