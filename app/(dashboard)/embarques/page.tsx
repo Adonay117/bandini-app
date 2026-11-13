@@ -10,20 +10,23 @@ import { StatTile } from '@/components/ui/StatTile';
 import { EmbarqueResumen, EstadoEmbarque } from '@/lib/types';
 import { formatCurrency, formatDia } from '@/lib/utils/formatters';
 import { ESTADO_EMBARQUE, codigoEmbarque } from '@/lib/utils/logistica';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 export default function EmbarquesPage() {
-  const [embarques, setEmbarques] = useState<EmbarqueResumen[]>([]);
+  const [embarques, setEmbarques] = useState<EmbarqueResumen[]>(() => cacheGet<EmbarqueResumen[]>('/api/embarques') ?? []);
   const [estado, setEstado] = useState<EstadoEmbarque | ''>('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cacheGet('/api/embarques'));
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
-    setLoading(true);
+    if (!cacheGet('/api/embarques')) setLoading(true);
     setError(null);
     try {
       const res = await fetch('/api/embarques');
       if (!res.ok) throw new Error((await res.json()).error ?? 'Error al cargar embarques');
-      setEmbarques(await res.json());
+      const json: EmbarqueResumen[] = await res.json();
+      cacheSet('/api/embarques', json);
+      setEmbarques(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar embarques');
     } finally {

@@ -63,6 +63,7 @@ import {
 import { pedirApi } from '@/lib/api';
 import { notificar } from '@/lib/notificar';
 import { DatePicker } from '@/components/ui/DatePicker';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 // Estados de producto donde tiene sentido ajustar el cobro con el cliente.
 const ESTADOS_AJUSTE: EstadoItemPedido[] = [
@@ -115,8 +116,8 @@ function construirMensaje(data: PedidoDetalle): string {
 
 export default function PedidoDetallePage() {
   const params = useParams<{ id: string }>();
-  const [data, setData] = useState<PedidoDetalle | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<PedidoDetalle | null>(() => cacheGet<PedidoDetalle>(`/api/pedidos/${params.id}`) ?? null);
+  const [loading, setLoading] = useState(() => !cacheGet<PedidoDetalle>(`/api/pedidos/${params.id}`));
   const [error, setError] = useState<string | null>(null);
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [copiado, setCopiado] = useState(false);
@@ -149,7 +150,9 @@ export default function PedidoDetallePage() {
     try {
       const res = await fetch(`/api/pedidos/${params.id}`);
       if (!res.ok) throw new Error((await res.json()).error ?? 'Pedido no encontrado');
-      setData(await res.json());
+      const json: PedidoDetalle = await res.json();
+      cacheSet(`/api/pedidos/${params.id}`, json);
+      setData(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar pedido');
     } finally {

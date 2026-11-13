@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -8,6 +9,20 @@ interface PaginatedResponse<T> {
   page: number;
   pageSize: number;
   [key: string]: unknown;
+}
+
+function urlLista(baseUrl: string, paramsKey: string, page: number, pageSize: number) {
+  const filtros: Record<string, string> = JSON.parse(paramsKey);
+  return `${baseUrl}?${new URLSearchParams({ ...filtros, page: String(page), pageSize: String(pageSize) }).toString()}`;
+}
+
+function extraDe<T>(json: PaginatedResponse<T>): Record<string, unknown> {
+  const resto: Record<string, unknown> = { ...json };
+  delete resto.data;
+  delete resto.total;
+  delete resto.page;
+  delete resto.pageSize;
+  return resto;
 }
 
 // Hook genérico para listas con filtros + paginación server-side. Los
@@ -25,10 +40,12 @@ export function usePaginatedList<T, E extends Record<string, unknown> = Record<s
   const [debouncedParamsKey, setDebouncedParamsKey] = useState(paramsKey);
   const [page, setPage] = useState(1);
   const [reloadToken, setReloadToken] = useState(0);
-  const [items, setItems] = useState<T[]>([]);
-  const [total, setTotal] = useState(0);
-  const [extra, setExtra] = useState<E>({} as E);
-  const [loading, setLoading] = useState(true);
+  // Si ya se cargó esta lista, se muestra al instante y se revalida en segundo plano.
+  const [inicial] = useState(() => cacheGet<PaginatedResponse<T>>(urlLista(baseUrl, paramsKey, 1, pageSize)));
+  const [items, setItems] = useState<T[]>(inicial?.data ?? []);
+  const [total, setTotal] = useState(inicial?.total ?? 0);
+  const [extra, setExtra] = useState<E>(inicial ? (extraDe(inicial) as E) : ({} as E));
+  const [loading, setLoading] = useState(!inicial);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,23 +60,26 @@ export function usePaginatedList<T, E extends Record<string, unknown> = Record<s
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      setLoading(true);
+      const url = urlLista(baseUrl, debouncedParamsKey, page, pageSize);
+      const enCache = cacheGet<PaginatedResponse<T>>(url);
+      if (enCache) {
+        setItems(enCache.data);
+        setTotal(enCache.total);
+        setExtra(extraDe(enCache) as E);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       try {
-        const filtros: Record<string, string> = JSON.parse(debouncedParamsKey);
-        const qs = new URLSearchParams({ ...filtros, page: String(page), pageSize: String(pageSize) });
-        const res = await fetch(`${baseUrl}?${qs.toString()}`);
+        const res = await fetch(url);
         if (!res.ok) throw new Error((await res.json()).error ?? 'Error al cargar datos');
         const json: PaginatedResponse<T> = await res.json();
+        cacheSet(url, json);
         if (!cancelled) {
           setItems(json.data);
           setTotal(json.total);
-          const resto: Record<string, unknown> = { ...json };
-          delete resto.data;
-          delete resto.total;
-          delete resto.page;
-          delete resto.pageSize;
-          setExtra(resto as E);
+          setExtra(extraDe(json) as E);
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Error al cargar datos');

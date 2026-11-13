@@ -19,9 +19,12 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims valida el JWT de la cookie localmente (con las llaves públicas
+  // del proyecto, cacheadas) en vez de llamar a Supabase Auth en cada página
+  // y cada /api/*: ahorra un viaje de red por petición. Si el token venció lo
+  // refresca; las llaves simétricas (legacy) caen a una verificación remota.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const user = claimsData?.claims ?? null;
 
   const { pathname } = request.nextUrl;
   const isLoginPage = pathname === '/login';

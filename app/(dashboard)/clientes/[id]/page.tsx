@@ -15,6 +15,7 @@ import { StickerCard } from '@/components/cards/StickerCard';
 import { ClienteForm } from '@/components/forms/ClienteForm';
 import { Cliente, PremioSticker, Venta } from '@/lib/types';
 import { formatCurrency, formatDate, montoFaltanteParaSiguienteSticker, whatsappUrl } from '@/lib/utils/formatters';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 type ClienteDetalle = Cliente & { premios: PremioSticker[]; ultimas_ventas: Venta[] };
 
@@ -36,8 +37,8 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 export default function ClienteDetallePage() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
-  const [data, setData] = useState<ClienteDetalle | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<ClienteDetalle | null>(() => cacheGet<ClienteDetalle>(`/api/clientes/${params.id}`) ?? null);
+  const [loading, setLoading] = useState(() => !cacheGet<ClienteDetalle>(`/api/clientes/${params.id}`));
   const [error, setError] = useState<string | null>(null);
   const [editando, setEditando] = useState(searchParams.get('editar') === '1');
   const [ajustando, setAjustando] = useState(false);
@@ -48,7 +49,9 @@ export default function ClienteDetallePage() {
     try {
       const res = await fetch(`/api/clientes/${params.id}`);
       if (!res.ok) throw new Error((await res.json()).error ?? 'Cliente no encontrado');
-      setData(await res.json());
+      const json: ClienteDetalle = await res.json();
+      cacheSet(`/api/clientes/${params.id}`, json);
+      setData(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar cliente');
     } finally {

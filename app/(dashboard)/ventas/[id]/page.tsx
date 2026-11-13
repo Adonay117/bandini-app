@@ -8,11 +8,12 @@ import { MetodoPagoBadge } from '@/components/ui/MetodoPagoBadge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Venta } from '@/lib/types';
 import { formatCurrency, formatDateTime } from '@/lib/utils/formatters';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 export default function VentaDetallePage() {
   const params = useParams<{ id: string }>();
-  const [venta, setVenta] = useState<Venta | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [venta, setVenta] = useState<Venta | null>(() => cacheGet<Venta>(`/api/ventas/${params.id}`) ?? null);
+  const [loading, setLoading] = useState(() => !cacheGet<Venta>(`/api/ventas/${params.id}`));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,6 +23,7 @@ export default function VentaDetallePage() {
         const res = await fetch(`/api/ventas/${params.id}`);
         if (!res.ok) throw new Error((await res.json()).error ?? 'Venta no encontrada');
         const data = await res.json();
+        cacheSet(`/api/ventas/${params.id}`, data);
         if (!cancelado) setVenta(data);
       } catch (err) {
         if (!cancelado) setError(err instanceof Error ? err.message : 'Error al cargar la venta');

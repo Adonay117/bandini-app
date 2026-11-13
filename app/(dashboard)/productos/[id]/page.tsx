@@ -12,11 +12,12 @@ import { MovimientosList } from '@/components/productos/MovimientosList';
 import { ProductoForm } from '@/components/forms/ProductoForm';
 import { Producto } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils/formatters';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 export default function ProductoDetallePage() {
   const params = useParams<{ id: string }>();
-  const [producto, setProducto] = useState<Producto | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [producto, setProducto] = useState<Producto | null>(() => cacheGet<Producto>(`/api/productos/${params.id}`) ?? null);
+  const [loading, setLoading] = useState(() => !cacheGet<Producto>(`/api/productos/${params.id}`));
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
@@ -25,7 +26,9 @@ export default function ProductoDetallePage() {
     try {
       const res = await fetch(`/api/productos/${params.id}`);
       if (!res.ok) throw new Error((await res.json()).error ?? 'Producto no encontrado');
-      setProducto(await res.json());
+      const json: Producto = await res.json();
+      cacheSet(`/api/productos/${params.id}`, json);
+      setProducto(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar producto');
     } finally {

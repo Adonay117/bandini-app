@@ -21,6 +21,7 @@ import { ESTADO_EMBARQUE, ESTADO_RECEPCION, codigoDevolucion, codigoEmbarque } f
 import { pedirApi } from '@/lib/api';
 import { notificar } from '@/lib/notificar';
 import { DatePicker } from '@/components/ui/DatePicker';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 interface LineaForm {
   recibida: string;
@@ -32,8 +33,8 @@ interface LineaForm {
 export default function EmbarqueDetallePage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const [data, setData] = useState<EmbarqueDetalle | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<EmbarqueDetalle | null>(() => cacheGet<EmbarqueDetalle>(`/api/embarques/${params.id}`) ?? null);
+  const [loading, setLoading] = useState(() => !cacheGet<EmbarqueDetalle>(`/api/embarques/${params.id}`));
   const [error, setError] = useState<string | null>(null);
   const [confirmacion, setConfirmacion] = useState<PopConfirmRequest | null>(null);
 
@@ -53,7 +54,9 @@ export default function EmbarqueDetallePage() {
     try {
       const res = await fetch(`/api/embarques/${params.id}`);
       if (!res.ok) throw new Error((await res.json()).error ?? 'Embarque no encontrado');
-      setData(await res.json());
+      const json: EmbarqueDetalle = await res.json();
+      cacheSet(`/api/embarques/${params.id}`, json);
+      setData(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar el embarque');
     } finally {

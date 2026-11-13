@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 export interface MesPlataformas {
   mes: string;
@@ -18,18 +19,26 @@ export interface PlataformasDashboardData {
 }
 
 export function usePlataformasDashboard(anio: number) {
-  const [data, setData] = useState<PlataformasDashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<PlataformasDashboardData | null>(() => cacheGet<PlataformasDashboardData>(`/api/dashboard/plataformas?anio=${anio}`) ?? null);
+  const [loading, setLoading] = useState(() => !cacheGet<PlataformasDashboardData>(`/api/dashboard/plataformas?anio=${anio}`));
   const [error, setError] = useState<string | null>(null);
 
   const fetchDatos = useCallback(
     async (signal?: AbortSignal) => {
-      setLoading(true);
+      const enCache = cacheGet<PlataformasDashboardData>(`/api/dashboard/plataformas?anio=${anio}`);
+      if (enCache) {
+        setData(enCache);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       try {
         const res = await fetch(`/api/dashboard/plataformas?anio=${anio}`, { signal });
         if (!res.ok) throw new Error((await res.json()).error ?? 'Error al cargar la comparativa por plataforma');
-        setData(await res.json());
+        const json: PlataformasDashboardData = await res.json();
+        cacheSet(`/api/dashboard/plataformas?anio=${anio}`, json);
+        setData(json);
         setLoading(false);
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') return;

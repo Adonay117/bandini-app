@@ -10,22 +10,26 @@ import { MiniaturaArticulo } from '@/components/pedidos/ImagenArticulo';
 import { IncidenciaAcciones } from '@/components/embarques/IncidenciaAcciones';
 import { IncidenciaBandeja } from '@/lib/types';
 import { codigoEmbarque } from '@/lib/utils/logistica';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 // Bandeja de todo lo que llegó mal y requiere seguimiento con la
 // plataforma: incidencias abiertas, reclamos en curso y reposiciones que
 // todavía no llegan.
 export default function IncidenciasPage() {
   const [todas, setTodas] = useState(false);
-  const [lista, setLista] = useState<IncidenciaBandeja[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [lista, setLista] = useState<IncidenciaBandeja[]>(() => cacheGet<IncidenciaBandeja[]>('/api/incidencias') ?? []);
+  const [loading, setLoading] = useState(() => !cacheGet('/api/incidencias'));
   const [error, setError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setError(null);
     try {
-      const res = await fetch(`/api/incidencias${todas ? '?todas=1' : ''}`);
+      const url = `/api/incidencias${todas ? '?todas=1' : ''}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error((await res.json()).error ?? 'Error al cargar incidencias');
-      setLista(await res.json());
+      const json: IncidenciaBandeja[] = await res.json();
+      cacheSet(url, json);
+      setLista(json);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar incidencias');
     } finally {

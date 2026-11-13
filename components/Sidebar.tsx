@@ -20,6 +20,7 @@ import {
 import { getSupabaseClient } from '@/lib/supabase';
 import { useNotificacionesPendientes } from '@/lib/hooks/useNotificacionesPendientes';
 import { notificar } from '@/lib/notificar';
+import { cacheClear } from '@/lib/cache';
 
 interface NavItem {
   href: string;
@@ -117,9 +118,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   }, []);
 
   useEffect(() => {
+    // getSession lee la sesión local; getUser haría un viaje de red extra solo para mostrar el correo.
     getSupabaseClient()
-      .auth.getUser()
-      .then(({ data }) => setEmail(data.user?.email ?? null));
+      .auth.getSession()
+      .then(({ data }) => setEmail(data.session?.user.email ?? null));
   }, []);
 
   // Ctrl+B / ⌘B alterna el sidebar, salvo mientras se escribe en un campo.
@@ -146,6 +148,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       notificar.error('No se pudo cerrar sesión', error.message);
       return;
     }
+    cacheClear();
     notificar.info('Sesión cerrada');
     router.push('/login');
     router.refresh();

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 export interface MovimientoDia {
   tipo: 'ingreso' | 'egreso';
@@ -76,18 +77,26 @@ export interface DashboardData {
 export type MetricaDashboard = 'ventas' | 'ganancia';
 
 export function useDashboard(mes: string) {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<DashboardData | null>(() => cacheGet<DashboardData>(`/api/dashboard?mes=${mes}`) ?? null);
+  const [loading, setLoading] = useState(() => !cacheGet<DashboardData>(`/api/dashboard?mes=${mes}`));
   const [error, setError] = useState<string | null>(null);
 
   const fetchDashboard = useCallback(
     async (signal?: AbortSignal) => {
-      setLoading(true);
+      const enCache = cacheGet<DashboardData>(`/api/dashboard?mes=${mes}`);
+      if (enCache) {
+        setData(enCache);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       try {
         const res = await fetch(`/api/dashboard?mes=${mes}`, { signal });
         if (!res.ok) throw new Error((await res.json()).error ?? 'Error al cargar el dashboard');
-        setData(await res.json());
+        const json: DashboardData = await res.json();
+        cacheSet(`/api/dashboard?mes=${mes}`, json);
+        setData(json);
         setLoading(false);
       } catch (err) {
         // Una petición abortada la reemplazó otra más nueva, que ya es dueña
