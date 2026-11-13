@@ -41,9 +41,9 @@ function costoProducto(p: ProductoVenta): number {
   return Number(info?.precio_costo ?? 0);
 }
 
-// Pedidos que no cuentan para la ganancia: una cotización todavía no es una
-// venta y un cancelado no movió producto.
-const ESTADOS_SIN_GANANCIA = ['cotizacion', 'cancelado'];
+// Pedidos que no cuentan para la ganancia: un pedido cancelado no es una
+// venta y no movió producto.
+const ESTADOS_SIN_GANANCIA = ['cancelado'];
 
 export async function GET(request: NextRequest) {
   const mesParam = request.nextUrl.searchParams.get('mes');
@@ -141,7 +141,19 @@ export async function GET(request: NextRequest) {
     return d.getFullYear() === r.anio && d.getMonth() + 1 === r.mesNum;
   };
 
-  const ganancia = { pedidos: 0, tienda: 0, vendido: 0, pedidosPrev: 0, tiendaPrev: 0, productosSinCosto: 0 };
+  const ganancia = {
+    pedidos: 0,
+    tienda: 0,
+    vendido: 0,
+    pedidosPrev: 0,
+    tiendaPrev: 0,
+    productosSinCosto: 0,
+    // Precio de venta (lo cobrado al cliente) por fuente, para la vista "Ventas $".
+    ventasPedidos: 0,
+    ventasTienda: 0,
+    ventasPedidosPrev: 0,
+    ventasTiendaPrev: 0,
+  };
 
   for (const p of pedidosGanancia.data ?? []) {
     const renta = rentaPorPedido.get(p.id);
@@ -150,6 +162,7 @@ export async function GET(request: NextRequest) {
     if (enMes(p.fecha_creacion)) {
       ganancia.pedidos += g;
       ganancia.vendido += Number(renta.ventas);
+      ganancia.ventasPedidos += Number(renta.ventas);
       ganancia.productosSinCosto += Number(renta.productos_sin_costo);
       const dia = dias[new Date(p.fecha_creacion).getDate() - 1];
       if (dia) {
@@ -158,6 +171,7 @@ export async function GET(request: NextRequest) {
       }
     } else {
       ganancia.pedidosPrev += g;
+      ganancia.ventasPedidosPrev += Number(renta.ventas);
     }
   }
 
@@ -171,6 +185,7 @@ export async function GET(request: NextRequest) {
       itemsVentasMes.push(v);
       ganancia.tienda += g;
       ganancia.vendido += Number(v.total);
+      ganancia.ventasTienda += Number(v.total);
       const dia = dias[new Date(fecha).getDate() - 1];
       if (dia) {
         dia.gananciaTienda += g;
@@ -178,6 +193,7 @@ export async function GET(request: NextRequest) {
       }
     } else {
       ganancia.tiendaPrev += g;
+      ganancia.ventasTiendaPrev += Number(v.total);
     }
   }
 
@@ -216,7 +232,7 @@ export async function GET(request: NextRequest) {
 
   const acumProductos = new Map<
     string,
-    { producto_id: string; nombre: string; imagen_url: string | null; cantidad: number; total: number }
+    { producto_id: string; nombre: string; imagen_url: string | null; cantidad: number; total: number; ganancia: number }
   >();
   for (const v of itemsVentasMes) {
     const actual = acumProductos.get(v.producto_id) ?? {
@@ -224,12 +240,15 @@ export async function GET(request: NextRequest) {
       ...datosProducto(v.producto as ProductoVenta),
       cantidad: 0,
       total: 0,
+      ganancia: 0,
     };
     actual.cantidad += v.cantidad;
     actual.total += Number(v.total);
+    actual.ganancia += Number(v.total) - v.cantidad * costoProducto(v.producto as ProductoVenta);
     acumProductos.set(v.producto_id, actual);
   }
   const topProductos = [...acumProductos.values()].sort((a, b) => b.cantidad - a.cantidad).slice(0, 10);
+  const topProductosGanancia = [...acumProductos.values()].sort((a, b) => b.ganancia - a.ganancia).slice(0, 10);
 
   return NextResponse.json({
     mes,
@@ -251,10 +270,16 @@ export async function GET(request: NextRequest) {
       gananciaMesPrev: ganancia.pedidosPrev + ganancia.tiendaPrev,
       gananciaPedidos: ganancia.pedidos,
       gananciaTienda: ganancia.tienda,
+      gananciaPedidosPrev: ganancia.pedidosPrev,
+      gananciaTiendaPrev: ganancia.tiendaPrev,
       vendidoMes: ganancia.vendido,
+      vendidoMesPrev: ganancia.ventasPedidosPrev + ganancia.ventasTiendaPrev,
+      ventasPedidosMes: ganancia.ventasPedidos,
+      ventasTiendaMes: ganancia.ventasTienda,
       productosSinCosto: ganancia.productosSinCosto,
     },
     dias,
     topProductos,
+    topProductosGanancia,
   });
 }

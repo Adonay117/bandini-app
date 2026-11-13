@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { AlertTriangle, Package, Percent, Store, TrendingDown, TrendingUp } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/formatters';
+import { MetricaDashboard } from '@/lib/hooks/useDashboard';
 
 function HeroStat({
   icon: Icon,
@@ -26,11 +27,15 @@ function HeroStat({
 
 interface GananciaHeroProps {
   mesLabel: string;
+  metrica: MetricaDashboard;
   ganancia: number;
   gananciaPrev?: number;
   gananciaPedidos: number;
   gananciaTienda: number;
   vendido: number;
+  vendidoPrev?: number;
+  ventasPedidos: number;
+  ventasTienda: number;
   productosSinCosto: number;
 }
 
@@ -40,24 +45,31 @@ interface GananciaHeroProps {
 // brutos — solo lo que le queda al negocio.
 export function GananciaHero({
   mesLabel,
+  metrica,
   ganancia,
   gananciaPrev,
   gananciaPedidos,
   gananciaTienda,
   vendido,
+  vendidoPrev,
+  ventasPedidos,
+  ventasTienda,
   productosSinCosto,
 }: GananciaHeroProps) {
-  const delta = gananciaPrev ? (ganancia - gananciaPrev) / Math.abs(gananciaPrev) : null;
+  const esVentas = metrica === 'ventas';
+  const principal = esVentas ? vendido : ganancia;
+  const previo = esVentas ? vendidoPrev : gananciaPrev;
+  const delta = previo ? (principal - previo) / Math.abs(previo) : null;
   const margen = vendido > 0 ? Math.round((ganancia / vendido) * 100) : null;
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-[#2d2645] p-5 text-white shadow-[var(--shadow-card)] sm:p-6">
       <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] font-medium tracking-wide text-white/55 uppercase">Ganancia neta de {mesLabel}</p>
+          <p className="text-[11px] font-medium tracking-wide text-white/55 uppercase">{esVentas ? 'Ventas' : 'Ganancia neta'} de {mesLabel}</p>
           <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <p className="text-3xl font-semibold tracking-tight tabular-nums sm:text-[40px] sm:leading-none">
-              {formatCurrency(ganancia)}
+              {formatCurrency(principal)}
             </p>
             {delta != null && Math.round(delta * 100) !== 0 && (
               <span
@@ -72,11 +84,13 @@ export function GananciaHero({
             )}
           </div>
           <p className="mt-2 text-sm text-white/65">
-            {ganancia < 0
-              ? 'Este mes los costos superan lo vendido.'
-              : 'Lo que te queda después de pagar el producto y el envío.'}
+            {esVentas
+              ? 'Lo cobrado al cliente, sin descontar costos.'
+              : ganancia < 0
+                ? 'Este mes los costos superan lo vendido.'
+                : 'Lo que te queda después de pagar el producto y el envío.'}
           </p>
-          {productosSinCosto > 0 && (
+          {!esVentas && productosSinCosto > 0 && (
             <Link
               href="/pedidos"
               className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1 text-xs text-[#ffe2a8] hover:bg-white/15"
@@ -88,8 +102,8 @@ export function GananciaHero({
         </div>
 
         <div className="grid grid-cols-3 gap-4 border-t border-white/10 pt-4 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-6">
-          <HeroStat icon={Package} label="Pedidos" value={formatCurrency(gananciaPedidos)} />
-          <HeroStat icon={Store} label="Tienda" value={formatCurrency(gananciaTienda)} />
+          <HeroStat icon={Package} label="Pedidos" value={formatCurrency(esVentas ? ventasPedidos : gananciaPedidos)} />
+          <HeroStat icon={Store} label="Tienda" value={formatCurrency(esVentas ? ventasTienda : gananciaTienda)} />
           <HeroStat icon={Percent} label="Margen" value={margen == null ? '—' : `${margen}%`} />
         </div>
       </div>

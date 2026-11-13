@@ -102,13 +102,11 @@ export interface NotificacionAdmin {
 export type Plataforma = 'SHEIN' | 'TEMU' | 'AMAZON';
 
 export type EstadoPedido =
-  | 'cotizacion'
   | 'confirmado'
   | 'comprado'
   | 'en_transito'
   | 'recibido_parcial'
   | 'recibido'
-  | 'listo_entrega'
   | 'entregado_parcial'
   | 'entregado'
   | 'completado'

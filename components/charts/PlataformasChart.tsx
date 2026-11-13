@@ -6,6 +6,7 @@ import { BarChart3, ChevronLeft, ChevronRight, Table2 } from 'lucide-react';
 import { ChartCard } from '@/components/dashboard/ChartCard';
 import { PlataformaLogo } from '@/components/charts/PlataformaLogo';
 import { MesPlataformas } from '@/lib/hooks/usePlataformasDashboard';
+import { MetricaDashboard } from '@/lib/hooks/useDashboard';
 import { useAnchoElemento } from '@/lib/hooks/useAnchoElemento';
 import { formatCurrency, formatCurrencyCompacto } from '@/lib/utils/formatters';
 import { anioActual, mesActual } from '@/lib/utils/charts';
@@ -19,13 +20,6 @@ const ANCHO_MAX_COLUMNA = 24;
 const GAP = 2;
 const RADIO = 4;
 const ANCHO_TOOLTIP = 210;
-
-type Metrica = 'ganancia' | 'ventas';
-
-const METRICAS: { clave: Metrica; label: string }[] = [
-  { clave: 'ganancia', label: 'Ganancia' },
-  { clave: 'ventas', label: 'Precio venta' },
-];
 
 interface Fila {
   mes: string;
@@ -58,13 +52,21 @@ interface Props {
   plataformas: string[];
   datos: MesPlataformas[];
   datosVentas: MesPlataformas[];
+  metrica: MetricaDashboard;
   cargando?: boolean;
 }
 
-export function PlataformasChart({ anio, onCambiarAnio, plataformas, datos, datosVentas, cargando = false }: Props) {
+export function PlataformasChart({
+  anio,
+  onCambiarAnio,
+  plataformas,
+  datos,
+  datosVentas,
+  metrica,
+  cargando = false,
+}: Props) {
   const [resaltada, setResaltada] = useState<string | null>(null);
   const [vista, setVista] = useState<'grafico' | 'tabla'>('grafico');
-  const [metrica, setMetrica] = useState<Metrica>('ganancia');
   const esVentas = metrica === 'ventas';
 
   const filas: Fila[] = useMemo(() => {
@@ -103,21 +105,6 @@ export function PlataformasChart({ anio, onCambiarAnio, plataformas, datos, dato
 
   const acciones = (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex items-center rounded-lg border border-border bg-white p-1" role="group" aria-label="Métrica">
-        {METRICAS.map((m) => (
-          <button
-            key={m.clave}
-            type="button"
-            onClick={() => setMetrica(m.clave)}
-            aria-pressed={metrica === m.clave}
-            className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-              metrica === m.clave ? 'bg-surface text-ink' : 'text-muted-light hover:text-muted'
-            }`}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
       <div className="flex items-center rounded-lg border border-border bg-white p-1" role="group" aria-label="Vista">
         {(
           [

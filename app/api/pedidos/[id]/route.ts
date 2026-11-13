@@ -91,6 +91,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   return NextResponse.json({
     ...pedidoBase,
+    // Legado: 'cotizacion' ya no existe; se muestra como 'confirmado' hasta correr la migración 0017.
+    estado: pedidoBase.estado === 'cotizacion' ? 'confirmado' : pedidoBase.estado,
     cliente_nombre: cliente?.nombre ?? null,
     cliente_lugar: cliente?.lugar ?? null,
     cliente_telefono: cliente?.telefono ?? null,
@@ -143,7 +145,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const supabase = createSupabaseAdminClient();
 
-  // Una cotización vacía no puede avanzar: hace falta al menos un producto
+  // Un pedido vacío no puede avanzar: hace falta al menos un producto
   // para confirmar (o cualquier estado posterior). Cancelarla sí se permite.
   if (body.estado !== undefined && !permitidoSinProductos(body.estado)) {
     const { count, error: countError } = await supabase
@@ -155,7 +157,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     if (!count) {
       return NextResponse.json(
-        { error: 'Agregá al menos un producto a la cotización antes de avanzar el pedido.' },
+        { error: 'Agregá al menos un producto al pedido antes de avanzar el pedido.' },
         { status: 422 }
       );
     }

@@ -20,6 +20,7 @@ import { formatCurrency, formatDateTime, formatDia, hoyISO } from '@/lib/utils/f
 import { ESTADO_EMBARQUE, ESTADO_RECEPCION, codigoDevolucion, codigoEmbarque } from '@/lib/utils/logistica';
 import { pedirApi } from '@/lib/api';
 import { notificar } from '@/lib/notificar';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 interface LineaForm {
   recibida: string;
@@ -220,7 +221,7 @@ export default function EmbarqueDetallePage() {
           <form onSubmit={guardarDatos} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Paquetería / encomendista" value={paqueteria} onChange={(e) => setPaqueteria(e.target.value)} />
             <Input label="Número de guía" value={guia} onChange={(e) => setGuia(e.target.value)} />
-            <Input label="Fecha de envío" type="date" value={fechaEnvio} onChange={(e) => setFechaEnvio(e.target.value)} />
+            <DatePicker label="Fecha de envío" value={fechaEnvio} onChange={setFechaEnvio} />
             <Input
               label="Costo total"
               type="number"
@@ -311,7 +312,7 @@ export default function EmbarqueDetallePage() {
               cantidad incompleta; lo que llegó pero no sirve, una de dañado o producto equivocado.
             </p>
             <div className="mb-4 max-w-48">
-              <Input label="Fecha de recepción" type="date" value={fechaRecepcion} onChange={(e) => setFechaRecepcion(e.target.value)} />
+              <DatePicker label="Fecha de recepción" value={fechaRecepcion} onChange={setFechaRecepcion} />
             </div>
             <ul className="flex flex-col gap-3">
               {lineasEditables.map((l) => {

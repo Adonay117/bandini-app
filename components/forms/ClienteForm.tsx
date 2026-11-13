@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { useClientes } from '@/lib/hooks/useClientes';
-import { validarEmail, validarTelefono } from '@/lib/utils/validators';
+import { formatearTelefono, validarEmail, validarTelefono } from '@/lib/utils/validators';
 import { Cliente, DEPARTAMENTOS_SV } from '@/lib/types';
 import { notificar } from '@/lib/notificar';
+import { hoyISO } from '@/lib/utils/formatters';
 
 export function ClienteForm({ cliente, onGuardado }: { cliente?: Cliente; onGuardado?: () => void }) {
   const router = useRouter();
@@ -16,7 +18,7 @@ export function ClienteForm({ cliente, onGuardado }: { cliente?: Cliente; onGuar
   const editando = cliente !== undefined;
 
   const [nombre, setNombre] = useState(cliente?.nombre ?? '');
-  const [telefono, setTelefono] = useState(cliente?.telefono ?? '');
+  const [telefono, setTelefono] = useState(formatearTelefono(cliente?.telefono ?? ''));
   const [email, setEmail] = useState(cliente?.email ?? '');
   const [fechaNacimiento, setFechaNacimiento] = useState(cliente?.fecha_nacimiento?.slice(0, 10) ?? '');
   const [departamento, setDepartamento] = useState(cliente?.departamento ?? '');
@@ -79,8 +81,12 @@ export function ClienteForm({ cliente, onGuardado }: { cliente?: Cliente; onGuar
       <Input
         label="Teléfono"
         placeholder="7123-4567"
+        type="tel"
+        inputMode="numeric"
+        autoComplete="tel"
+        maxLength={9}
         value={telefono}
-        onChange={(e) => setTelefono(e.target.value)}
+        onChange={(e) => setTelefono(formatearTelefono(e.target.value))}
         error={telefono.trim() !== '' && !telefonoValido ? 'Teléfono inválido' : undefined}
         required
       />
@@ -91,12 +97,7 @@ export function ClienteForm({ cliente, onGuardado }: { cliente?: Cliente; onGuar
         onChange={(e) => setEmail(e.target.value)}
         error={!emailValido ? 'Email inválido' : undefined}
       />
-      <Input
-        label="Fecha de nacimiento"
-        type="date"
-        value={fechaNacimiento}
-        onChange={(e) => setFechaNacimiento(e.target.value)}
-      />
+      <DatePicker label="Fecha de nacimiento" value={fechaNacimiento} onChange={setFechaNacimiento} max={hoyISO()} />
       <div className="grid grid-cols-2 gap-4">
         <Select label="Departamento" value={departamento} onChange={(e) => setDepartamento(e.target.value)}>
           <option value="">Sin especificar</option>

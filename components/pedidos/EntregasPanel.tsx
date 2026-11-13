@@ -12,6 +12,7 @@ import { formatDateTime, formatDia } from '@/lib/utils/formatters';
 import { ESTADO_ENTREGA, MODALIDAD_ENTREGA, siguientesEstadosEntrega } from '@/lib/utils/logistica';
 import { pedirApi } from '@/lib/api';
 import { notificar } from '@/lib/notificar';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 const ACCION_ENTREGA: Record<EstadoEntrega, string> = {
   pendiente: 'Volver a pendiente',
@@ -153,7 +154,7 @@ export function EntregasPanel({
             </div>
           )}
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Input label="Fecha programada (opcional)" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            <DatePicker label="Fecha programada (opcional)" value={fecha} onChange={setFecha} />
             <Input label="Nota (opcional)" value={nota} onChange={(e) => setNota(e.target.value)} />
           </div>
 

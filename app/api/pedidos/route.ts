@@ -84,6 +84,8 @@ export async function GET(request: NextRequest) {
 
   const pedidos = (data ?? []).map(({ cliente, ...pedido }) => ({
     ...pedido,
+    // Legado: 'cotizacion' ya no existe; se muestra como 'confirmado' hasta correr la migración 0017.
+    estado: pedido.estado === 'cotizacion' ? 'confirmado' : pedido.estado,
     cliente_nombre: cliente?.nombre ?? null,
     cliente_lugar: cliente?.lugar ?? null,
   }));
@@ -118,7 +120,7 @@ export async function POST(request: NextRequest) {
   // automáticamente (trigger recalcular_totales_pedido) según se agreguen artículos.
   const { data, error } = await supabase
     .from('pedidos')
-    .insert({ cliente_id, plataforma, estado: estado ?? 'cotizacion' })
+    .insert({ cliente_id, plataforma, estado: estado ?? 'confirmado' })
     .select()
     .single();
 

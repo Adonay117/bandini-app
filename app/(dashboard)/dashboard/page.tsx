@@ -12,18 +12,27 @@ import { MonthYearFilter } from '@/components/charts/MonthYearFilter';
 import { MovimientosChart } from '@/components/charts/MovimientosChart';
 import { PlataformasChart } from '@/components/charts/PlataformasChart';
 import { TopProductosChart } from '@/components/charts/TopProductosChart';
-import { useDashboard } from '@/lib/hooks/useDashboard';
+import { MetricaDashboard, useDashboard } from '@/lib/hooks/useDashboard';
 import { usePlataformasDashboard } from '@/lib/hooks/usePlataformasDashboard';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { anioActual, formatMesLargo, mesActual } from '@/lib/utils/charts';
 
 function deltaRelativo(actual: number, previo: number): number | null {
   if (!previo) return null;
-  return (actual - previo) / previo;
+  return (actual - previo) / Math.abs(previo);
 }
+
+const METRICAS: { clave: MetricaDashboard; label: string }[] = [
+  { clave: 'ventas', label: 'Ventas $' },
+  { clave: 'ganancia', label: 'Ganancia neta' },
+];
 
 export default function DashboardPage() {
   const [mes, setMes] = useState(mesActual);
+  // Un solo selector gobierna hero, tarjetas y gráficas: ver el negocio por lo
+  // cobrado (ventas) o por lo que realmente queda (ganancia neta).
+  const [metrica, setMetrica] = useState<MetricaDashboard>('ganancia');
+  const esVentas = metrica === 'ventas';
   const { data, loading, error } = useDashboard(mes);
 
   const [anioPlataformas, setAnioPlataformas] = useState(anioActual);
@@ -60,7 +69,28 @@ export default function DashboardPage() {
             )}
           </p>
         </div>
-        <MonthYearFilter value={mes} onChange={setMes} />
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            className="flex items-center rounded-lg border border-border bg-white p-1"
+            role="group"
+            aria-label="Ver el resumen por"
+          >
+            {METRICAS.map((m) => (
+              <button
+                key={m.clave}
+                type="button"
+                onClick={() => setMetrica(m.clave)}
+                aria-pressed={metrica === m.clave}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  metrica === m.clave ? 'bg-primary text-white' : 'text-muted hover:text-ink'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <MonthYearFilter value={mes} onChange={setMes} />
+        </div>
       </div>
 
       <div
@@ -68,22 +98,37 @@ export default function DashboardPage() {
       >
         <GananciaHero
           mesLabel={mesLabel.toLowerCase()}
+          metrica={metrica}
           ganancia={k.gananciaMes}
           gananciaPrev={k.gananciaMesPrev}
           gananciaPedidos={k.gananciaPedidos}
           gananciaTienda={k.gananciaTienda}
           vendido={k.vendidoMes}
+          vendidoPrev={k.vendidoMesPrev}
+          ventasPedidos={k.ventasPedidosMes}
+          ventasTienda={k.ventasTiendaMes}
           productosSinCosto={k.productosSinCosto}
         />
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            label="Ventas de tienda"
-            value={formatCurrency(k.ventasMes.monto)}
-            hint={`${k.ventasMes.count} venta${k.ventasMes.count === 1 ? '' : 's'} este mes`}
-            icon={ShoppingCart}
-            delta={deltaRelativo(k.ventasMes.monto, k.ventasMesPrev)}
-          />
+          {esVentas ? (
+            <MetricCard
+              label="Ventas de tienda"
+              value={formatCurrency(k.ventasMes.monto)}
+              hint={`${k.ventasMes.count} venta${k.ventasMes.count === 1 ? '' : 's'} este mes`}
+              icon={ShoppingCart}
+              delta={deltaRelativo(k.ventasMes.monto, k.ventasMesPrev)}
+            />
+          ) : (
+            <MetricCard
+              label="Ganancia de tienda"
+              value={formatCurrency(k.gananciaTienda)}
+              hint={`${k.ventasMes.count} venta${k.ventasMes.count === 1 ? '' : 's'} este mes`}
+              icon={ShoppingCart}
+              tone={k.gananciaTienda < 0 ? 'negative' : 'default'}
+              delta={deltaRelativo(k.gananciaTienda, k.gananciaTiendaPrev)}
+            />
+          )}
           <MetricCard
             label="Clientes activos"
             value={k.clientesActivos}
@@ -115,6 +160,7 @@ export default function DashboardPage() {
             plataformas={dataPlataformas.plataformas}
             datos={dataPlataformas.datos}
             datosVentas={dataPlataformas.datosVentas}
+            metrica={metrica}
             cargando={cargandoPlataformas}
           />
         )}
@@ -127,10 +173,14 @@ export default function DashboardPage() {
             totalIngresos={k.ingresosMes}
             totalEgresos={k.egresosMes}
           />
-          <ComposicionGananciaChart mes={mes} mesLabel={mesLabel} dias={data.dias} />
+          <ComposicionGananciaChart mes={mes} mesLabel={mesLabel} dias={data.dias} metrica={metrica} />
         </div>
 
-        <TopProductosChart data={data.topProductos} mesLabel={mesLabel} />
+        <TopProductosChart
+          data={esVentas ? data.topProductos : data.topProductosGanancia}
+          mesLabel={mesLabel}
+          metrica={metrica}
+        />
 
         <MovimientosChart mes={mes} mesLabel={mesLabel} dias={data.dias} />
       </div>

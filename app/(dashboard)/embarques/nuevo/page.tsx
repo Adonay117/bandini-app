@@ -16,6 +16,7 @@ import { ProductoPorEmbarcar } from '@/lib/types';
 import { formatCurrency, hoyISO } from '@/lib/utils/formatters';
 import { pedirApi } from '@/lib/api';
 import { notificar } from '@/lib/notificar';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 const clave = (p: ProductoPorEmbarcar) => `${p.pedido_item_id}:${p.reposicion_id ?? ''}`;
 
@@ -26,11 +27,9 @@ export default function NuevoEmbarquePage() {
   const [busqueda, setBusqueda] = useState('');
   const [seleccion, setSeleccion] = useState<Record<string, number>>({});
 
-  const [guia, setGuia] = useState('');
   const [paqueteria, setPaqueteria] = useState('');
   const [fecha, setFecha] = useState(hoyISO());
   const [costo, setCosto] = useState('');
-  const [nota, setNota] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,11 +83,9 @@ export default function NuevoEmbarquePage() {
           {
             method: 'POST',
             body: JSON.stringify({
-              guia,
               paqueteria,
               fecha_envio: fecha,
               costo_total: Number(costo || 0),
-              nota,
               lineas: seleccionados.map((p) => ({
                 pedido_item_id: p.pedido_item_id,
                 reposicion_id: p.reposicion_id,
@@ -126,8 +123,7 @@ export default function NuevoEmbarquePage() {
       <Panel title="Paquete">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Paquetería / encomendista" value={paqueteria} onChange={(e) => setPaqueteria(e.target.value)} required />
-          <Input label="Número de guía (opcional)" value={guia} onChange={(e) => setGuia(e.target.value)} />
-          <Input label="Fecha de envío" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          <DatePicker label="Fecha de envío" value={fecha} onChange={setFecha} />
           <Input
             label="Costo total cobrado por traerlo"
             type="number"
@@ -138,9 +134,6 @@ export default function NuevoEmbarquePage() {
             value={costo}
             onChange={(e) => setCosto(e.target.value)}
           />
-        </div>
-        <div className="mt-3">
-          <Input label="Nota (opcional)" value={nota} onChange={(e) => setNota(e.target.value)} />
         </div>
         <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-light">
           <Info size={13} className="mt-px shrink-0" />

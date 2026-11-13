@@ -5,24 +5,20 @@ import { BadgeVariant } from '@/components/ui/Badge';
 // parciales se muestran en la misma posición que su estado completo, y
 // desistido/cancelado quedan fuera del camino.
 export const ESTADOS_PEDIDO: EstadoPedido[] = [
-  'cotizacion',
   'confirmado',
   'comprado',
   'en_transito',
   'recibido',
-  'listo_entrega',
   'entregado',
   'completado',
 ];
 
 export const TODOS_ESTADOS_PEDIDO: EstadoPedido[] = [
-  'cotizacion',
   'confirmado',
   'comprado',
   'en_transito',
   'recibido_parcial',
   'recibido',
-  'listo_entrega',
   'entregado_parcial',
   'entregado',
   'completado',
@@ -31,32 +27,58 @@ export const TODOS_ESTADOS_PEDIDO: EstadoPedido[] = [
 ];
 
 // Estados que la API deja fijar a mano; el resto los calcula la base de
-// datos a partir de embarques, recepciones y entregas.
+// datos (embarques, recepciones, entregas y cobro). 'comprado' se fija solo
+// cuando no queda producto por comprar; 'completado' cuando está entregado y
+// pagado. Quedan manuales por si hay que forzarlos desde la acción sugerida.
 export const ESTADOS_PEDIDO_MANUALES: EstadoPedido[] = [
-  'cotizacion',
   'confirmado',
   'comprado',
-  'listo_entrega',
   'completado',
   'cancelado',
 ];
 
-// Un pedido sin productos solo puede quedarse en cotización o cancelarse.
+// Siguiente paso sugerido para el usuario (null = el sistema avanza solo).
+export function siguienteAccion(
+  estado: EstadoPedido,
+  { hayProductos, saldado }: { hayProductos: boolean; saldado: boolean }
+): { tipo: 'estado'; destino: EstadoPedido; label: string } | { tipo: 'info'; texto: string; href?: string } | null {
+  switch (estado) {
+    case 'confirmado':
+      return hayProductos
+        ? { tipo: 'estado', destino: 'comprado', label: 'Marcar todo como comprado' }
+        : { tipo: 'info', texto: 'Agregá productos al pedido para empezar a comprar.' };
+    case 'comprado':
+      return { tipo: 'info', texto: 'Siguiente: incluir los productos en un embarque.', href: '/embarques/nuevo' };
+    case 'en_transito':
+      return { tipo: 'info', texto: 'Siguiente: registrar la recepción cuando llegue el embarque.', href: '/embarques' };
+    case 'recibido_parcial':
+    case 'recibido':
+      return { tipo: 'info', texto: 'Siguiente: registrar la entrega al cliente.' };
+    case 'entregado_parcial':
+      return { tipo: 'info', texto: 'Siguiente: entregar los productos que faltan.' };
+    case 'entregado':
+      return saldado
+        ? null
+        : { tipo: 'info', texto: 'Se completa solo al registrar el pago del saldo pendiente.' };
+    default:
+      return null;
+  }
+}
+
+// Un pedido sin productos solo puede quedarse en confirmado (estado inicial) o cancelarse.
 export function permitidoSinProductos(estado: EstadoPedido): boolean {
-  return estado === 'cotizacion' || estado === 'cancelado';
+  return estado === 'confirmado' || estado === 'cancelado';
 }
 
 // Estados en los que el pedido ya no está "activo" (no suma a por cobrar).
 export const ESTADOS_PEDIDO_CERRADOS: EstadoPedido[] = ['completado', 'desistido', 'cancelado'];
 
 export const ESTADO_PEDIDO: Record<EstadoPedido, { label: string; badge: BadgeVariant }> = {
-  cotizacion: { label: 'Cotización', badge: 'neutral' },
   confirmado: { label: 'Confirmado', badge: 'primary' },
   comprado: { label: 'Comprado', badge: 'primary' },
   en_transito: { label: 'En tránsito', badge: 'warning' },
   recibido_parcial: { label: 'Recibido parcial', badge: 'warning' },
   recibido: { label: 'Recibido', badge: 'primary' },
-  listo_entrega: { label: 'Listo p/ entrega', badge: 'primary' },
   entregado_parcial: { label: 'Entrega parcial', badge: 'warning' },
   entregado: { label: 'Entregado', badge: 'positive' },
   completado: { label: 'Completado', badge: 'positive' },
@@ -93,13 +115,11 @@ export const ESTADOS_ITEM_MANUALES: EstadoItemPedido[] = ['pendiente', 'comprado
 
 // Emojis para el mensaje de WhatsApp (texto plano, no interfaz).
 export const ESTADO_PEDIDO_EMOJI: Record<EstadoPedido, string> = {
-  cotizacion: '📝',
   confirmado: '✅',
   comprado: '🛒',
   en_transito: '🚚',
   recibido_parcial: '📦',
   recibido: '📦',
-  listo_entrega: '🎁',
   entregado_parcial: '📬',
   entregado: '📬',
   completado: '🎉',
@@ -108,13 +128,11 @@ export const ESTADO_PEDIDO_EMOJI: Record<EstadoPedido, string> = {
 };
 
 export const ESTADO_PEDIDO_FRASE: Record<EstadoPedido, string> = {
-  cotizacion: 'en cotización',
   confirmado: 'confirmado',
   comprado: 'comprado',
   en_transito: 'en tránsito',
   recibido_parcial: 'recibido parcialmente',
   recibido: 'recibido en El Salvador',
-  listo_entrega: 'listo para entrega',
   entregado_parcial: 'entregado parcialmente',
   entregado: 'entregado',
   completado: 'completado',

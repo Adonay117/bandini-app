@@ -11,11 +11,9 @@ import { Pagination } from '@/components/ui/Pagination';
 import { PedidosTable } from '@/components/tables/PedidosTable';
 import { usePaginatedList } from '@/lib/hooks/usePaginatedList';
 import { formatCurrency } from '@/lib/utils/formatters';
-import { TODOS_ESTADOS_PEDIDO, ESTADO_PEDIDO, ESTADO_PEDIDO_FRASE } from '@/lib/utils/pedidos';
+import { TODOS_ESTADOS_PEDIDO, ESTADO_PEDIDO } from '@/lib/utils/pedidos';
 import { NOMBRE_PLATAFORMA, PLATAFORMAS } from '@/lib/utils/logistica';
-import { EstadoPedido, Pedido } from '@/lib/types';
-import { pedirApi } from '@/lib/api';
-import { notificar } from '@/lib/notificar';
+import { Pedido } from '@/lib/types';
 
 interface ResumenPedidos {
   porCobrar: number;
@@ -26,7 +24,6 @@ export default function PedidosPage() {
   const [search, setSearch] = useState('');
   const [estado, setEstado] = useState('');
   const [plataforma, setPlataforma] = useState('');
-  const [cambioEstadoError, setCambioEstadoError] = useState<string | null>(null);
 
   const params = useMemo(
     () => ({
@@ -37,26 +34,13 @@ export default function PedidosPage() {
     [search, estado, plataforma]
   );
 
-  const { items: pedidos, total, totalPages, page, setPage, loading, error, refetch, extra } = usePaginatedList<
+  const { items: pedidos, total, totalPages, page, setPage, loading, error, extra } = usePaginatedList<
     Pedido,
     { resumen?: ResumenPedidos }
   >('/api/pedidos', params);
 
   const hayFiltros = Boolean(search || estado || plataforma);
   const resumen = extra.resumen;
-
-  async function cambiarEstado(id: string, nuevoEstado: EstadoPedido) {
-    setCambioEstadoError(null);
-    try {
-      await notificar(
-        pedirApi(`/api/pedidos/${id}`, { method: 'PATCH', body: JSON.stringify({ estado: nuevoEstado }) }, 'Error al cambiar estado'),
-        { exito: `Pedido ${ESTADO_PEDIDO_FRASE[nuevoEstado]}`, error: 'No se pudo cambiar el estado' }
-      );
-      refetch();
-    } catch (err) {
-      setCambioEstadoError(err instanceof Error ? err.message : 'Error al cambiar estado');
-    }
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -129,9 +113,9 @@ export default function PedidosPage() {
         )}
       </div>
 
-      {(error || cambioEstadoError) && (
+      {error && (
         <div role="alert" className="rounded-xl border border-negative-surface bg-negative-surface/40 p-4 text-sm text-negative">
-          {error || cambioEstadoError}
+          {error}
         </div>
       )}
 
@@ -159,7 +143,7 @@ export default function PedidosPage() {
         </div>
       ) : (
         <div className={`flex flex-col gap-4 transition-opacity ${loading ? 'opacity-60' : 'opacity-100'}`}>
-          <PedidosTable pedidos={pedidos} onCambiarEstado={cambiarEstado} />
+          <PedidosTable pedidos={pedidos} />
           <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
         </div>
       )}

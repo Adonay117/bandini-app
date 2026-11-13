@@ -2,17 +2,22 @@ import Link from 'next/link';
 import { Crown } from 'lucide-react';
 import { ChartCard } from '@/components/dashboard/ChartCard';
 import { ProductoThumb } from '@/components/productos/ProductoThumb';
-import { ProductoTop } from '@/lib/hooks/useDashboard';
+import { MetricaDashboard, ProductoTop } from '@/lib/hooks/useDashboard';
 import { formatCurrency } from '@/lib/utils/formatters';
 
 interface Props {
   data: ProductoTop[];
   mesLabel: string;
+  metrica: MetricaDashboard;
 }
 
-export function TopProductosChart({ data, mesLabel }: Props) {
+export function TopProductosChart({ data, mesLabel, metrica }: Props) {
+  const esVentas = metrica === 'ventas';
   return (
-    <ChartCard title="Productos más vendidos" subtitle={mesLabel}>
+    <ChartCard
+      title={esVentas ? 'Productos más vendidos' : 'Productos que más ganancia dejan'}
+      subtitle={esVentas ? mesLabel : `${mesLabel} · ventas de tienda, ya descontado el costo`}
+    >
       {data.length === 0 ? (
         <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-border">
           <p className="text-sm text-muted-light">Sin ventas en este mes.</p>
@@ -41,8 +46,12 @@ export function TopProductosChart({ data, mesLabel }: Props) {
                     {item.cantidad} unidad{item.cantidad === 1 ? '' : 'es'} vendida{item.cantidad === 1 ? '' : 's'}
                   </p>
                 </div>
-                <span className={`shrink-0 tabular-nums text-ink ${esPrimero ? 'text-base font-semibold' : 'text-sm font-semibold'}`}>
-                  {formatCurrency(item.total)}
+                <span
+                  className={`shrink-0 tabular-nums ${item.ganancia < 0 && !esVentas ? 'text-negative' : 'text-ink'} ${
+                    esPrimero ? 'text-base font-semibold' : 'text-sm font-semibold'
+                  }`}
+                >
+                  {formatCurrency(esVentas ? item.total : item.ganancia)}
                 </span>
               </>
             );

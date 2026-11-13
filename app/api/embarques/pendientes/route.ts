@@ -35,7 +35,7 @@ interface DevolucionRel {
 //   - reposiciones aprobadas por la plataforma que aún no viajan.
 export async function GET() {
   const supabase = createSupabaseAdminClient();
-  const excluidos = `(${['cotizacion', ...ESTADOS_PEDIDO_CERRADOS].join(',')})`;
+  const excluidos = `(${[...ESTADOS_PEDIDO_CERRADOS].join(',')})`;
 
   const [items, reposiciones] = await Promise.all([
     supabase

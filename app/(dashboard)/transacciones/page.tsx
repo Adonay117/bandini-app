@@ -14,6 +14,7 @@ import { Transaccion, TipoTransaccion } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils/formatters';
 import { pedirApi } from '@/lib/api';
 import { notificar } from '@/lib/notificar';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 export default function TransaccionesPage() {
   const [desde, setDesde] = useState('');
@@ -119,8 +120,8 @@ export default function TransaccionesPage() {
           <Filter size={14} /> Filtros — dar seguimiento por período
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Input label="Desde" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
-          <Input label="Hasta" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+          <DatePicker label="Desde" value={desde} onChange={setDesde} />
+          <DatePicker label="Hasta" value={hasta} onChange={setHasta} />
           <Select label="Tipo" value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)}>
             <option value="">Todos</option>
             <option value="ingreso">Ingreso</option>

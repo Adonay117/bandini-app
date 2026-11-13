@@ -1,7 +1,6 @@
 'use client';
 
 import { FocusEvent, MouseEvent, useCallback, useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -207,25 +206,17 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         </button>
 
         <div className={`relative flex h-full flex-col px-3 py-4 lg:py-5 ${c('lg:px-2')}`}>
-          {/* Marca */}
+          {/* Usuario */}
           <div className={`mb-5 flex items-center gap-2.5 px-2 ${c('lg:justify-center lg:px-0')}`}>
-            {/* Colapsado queda solo la inicial; expandido, el logo completo. */}
             <span
-              className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary font-[family-name:var(--font-sans)] text-lg font-bold text-primary ${c(
-                'lg:flex'
-              )}`}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-semibold"
+              {...conTooltip(email ?? 'Admin')}
             >
-              B
+              {inicial}
             </span>
             <div className={`min-w-0 flex-1 ${c('lg:hidden')}`}>
-              <Image
-                src="/logo-bandini-blanco.png"
-                alt="Bandini SV — Varieties & Imports"
-                width={1000}
-                height={294}
-                priority
-                className="h-auto w-[148px]"
-              />
+              <p className="truncate text-sm font-medium">Admin</p>
+              {email && <p className="truncate text-xs text-white/55">{email}</p>}
             </div>
             <button
               type="button"
@@ -293,30 +284,20 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             ))}
           </div>
 
-          {/* Cuenta */}
+          {/* Cerrar sesión */}
           <div className="mt-3 border-t border-white/10 pt-3">
-            <div className={`flex items-center gap-2.5 px-2 py-1 ${c('lg:flex-col lg:gap-1.5 lg:px-0')}`}>
-              <span
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-xs font-semibold"
-                {...conTooltip(email ?? 'Admin')}
-              >
-                {inicial}
-              </span>
-              <div className={`min-w-0 flex-1 ${c('lg:hidden')}`}>
-                <p className="truncate text-sm font-medium">Admin</p>
-                {email && <p className="truncate text-xs text-white/55">{email}</p>}
-              </div>
-              <button
-                type="button"
-                onClick={cerrarSesion}
-                className="rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white"
-                aria-label="Cerrar sesión"
-                title={colapsado ? undefined : 'Cerrar sesión'}
-                {...conTooltip('Cerrar sesión')}
-              >
-                <LogOut size={16} />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={cerrarSesion}
+              aria-label="Cerrar sesión"
+              {...conTooltip('Cerrar sesión')}
+              className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-white/75 transition-colors hover:bg-white/10 hover:text-white ${c(
+                'lg:mx-auto lg:h-10 lg:w-10 lg:justify-center lg:gap-0 lg:px-0 lg:py-0'
+              )}`}
+            >
+              <LogOut size={17} className="shrink-0" />
+              <span className={c('lg:hidden')}>Cerrar sesión</span>
+            </button>
           </div>
         </div>
       </nav>

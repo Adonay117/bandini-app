@@ -29,6 +29,8 @@ export interface ProductoTop {
   imagen_url?: string | null;
   cantidad: number;
   total: number;
+  // Ganancia de tienda del producto (total menos costo de inventario).
+  ganancia: number;
 }
 
 export interface DashboardKpis {
@@ -51,7 +53,13 @@ export interface DashboardKpis {
   gananciaMesPrev: number;
   gananciaPedidos: number;
   gananciaTienda: number;
+  gananciaPedidosPrev: number;
+  gananciaTiendaPrev: number;
+  // Precio de venta (lo cobrado al cliente, sin descontar costos): total y por fuente.
   vendidoMes: number;
+  vendidoMesPrev: number;
+  ventasPedidosMes: number;
+  ventasTiendaMes: number;
   // Productos de pedidos sin precio de compra: inflan la ganancia.
   productosSinCosto: number;
 }
@@ -61,7 +69,11 @@ export interface DashboardData {
   kpis: DashboardKpis;
   dias: DiaDashboard[];
   topProductos: ProductoTop[];
+  topProductosGanancia: ProductoTop[];
 }
+
+/** Punto de vista del dashboard: precio de venta ($ cobrado) o ganancia neta. */
+export type MetricaDashboard = 'ventas' | 'ganancia';
 
 export function useDashboard(mes: string) {
   const [data, setData] = useState<DashboardData | null>(null);

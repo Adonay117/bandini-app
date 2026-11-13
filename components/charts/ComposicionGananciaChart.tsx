@@ -3,7 +3,7 @@
 import { KeyboardEvent, PointerEvent, useMemo, useState } from 'react';
 import { curveMonotoneX, line, scaleLinear } from 'd3';
 import { ChartCard } from '@/components/dashboard/ChartCard';
-import { DiaDashboard } from '@/lib/hooks/useDashboard';
+import { DiaDashboard, MetricaDashboard } from '@/lib/hooks/useDashboard';
 import { useAnchoElemento } from '@/lib/hooks/useAnchoElemento';
 import { formatCurrency, formatCurrencyCompacto } from '@/lib/utils/formatters';
 import { etiquetaDiaFecha, mesActual } from '@/lib/utils/charts';
@@ -16,15 +16,9 @@ const SERIES = [
 ] as const;
 
 type Clave = (typeof SERIES)[number]['clave'];
-type Metrica = 'ganancia' | 'ventas';
-
-const METRICAS: { clave: Metrica; label: string }[] = [
-  { clave: 'ganancia', label: 'Ganancia' },
-  { clave: 'ventas', label: 'Precio venta' },
-];
 
 /** Valor del día de una fuente según la métrica elegida. */
-function valorDia(d: DiaDashboard, clave: Clave, metrica: Metrica): number {
+function valorDia(d: DiaDashboard, clave: Clave, metrica: MetricaDashboard): number {
   if (metrica === 'ganancia') return d[clave];
   return clave === 'gananciaTienda' ? d.ventasTienda : d.ventasPedidos;
 }
@@ -45,15 +39,15 @@ interface Props {
   mes: string;
   mesLabel: string;
   dias: DiaDashboard[];
+  metrica: MetricaDashboard;
 }
 
 // Ganancia acumulada del mes por fuente: dos líneas que suben día a día.
 // Los pedidos son pocos y caen en días sueltos, así que el acumulado lee
 // mejor que barras diarias casi vacías; una pérdida se ve como un escalón
 // hacia abajo sin trucos de apilado.
-export function ComposicionGananciaChart({ mes, mesLabel, dias }: Props) {
+export function ComposicionGananciaChart({ mes, mesLabel, dias, metrica }: Props) {
   const [activo, setActivo] = useState<number | null>(null);
-  const [metrica, setMetrica] = useState<Metrica>('ganancia');
   const esVentas = metrica === 'ventas';
   const { ref, ancho } = useAnchoElemento<HTMLDivElement>();
 
@@ -135,23 +129,6 @@ export function ComposicionGananciaChart({ mes, mesLabel, dias }: Props) {
         esVentas
           ? `Acumulado del mes, precio de venta sin descontar costo · ${mesLabel}`
           : `Acumulado del mes, ya descontado el costo · ${mesLabel}`
-      }
-      actions={
-        <div className="flex items-center rounded-lg border border-border bg-white p-1" role="group" aria-label="Métrica">
-          {METRICAS.map((m) => (
-            <button
-              key={m.clave}
-              type="button"
-              onClick={() => setMetrica(m.clave)}
-              aria-pressed={metrica === m.clave}
-              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-                metrica === m.clave ? 'bg-surface text-ink' : 'text-muted-light hover:text-muted'
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
       }
     >
       {!conMovimiento ? (

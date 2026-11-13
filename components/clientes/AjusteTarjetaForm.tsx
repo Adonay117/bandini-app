@@ -8,6 +8,7 @@ import { Cliente } from '@/lib/types';
 import { calcularStickers } from '@/lib/utils/formatters';
 import { pedirApi } from '@/lib/api';
 import { notificar } from '@/lib/notificar';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 interface PremioHist {
   monto: 12 | 25;
@@ -163,12 +164,9 @@ export function AjusteTarjetaForm({
               <option value="canjeado">Canjeado</option>
               <option value="disponible">Disponible</option>
             </select>
-            <input
-              type="date"
-              value={p.fecha}
-              onChange={(e) => setPremio(i, { fecha: e.target.value })}
-              className="min-h-10 min-w-[7.5rem] flex-1 rounded-lg border border-border bg-white px-2 text-sm text-ink outline-none focus:border-primary"
-            />
+            <div className="min-w-[8.5rem] flex-1">
+              <DatePicker value={p.fecha} onChange={(fecha) => setPremio(i, { fecha })} placeholder="Fecha" />
+            </div>
             <button
               type="button"
               onClick={() => setPremios((prev) => prev.filter((_, idx) => idx !== i))}

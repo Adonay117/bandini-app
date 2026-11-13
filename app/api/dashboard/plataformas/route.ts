@@ -3,8 +3,8 @@ import { createSupabaseAdminClient } from '@/lib/supabase-admin';
 import { anioActual, mesesDelAnio } from '@/lib/utils/charts';
 import { PLATAFORMAS_PRINCIPALES } from '@/lib/utils/plataformas';
 
-// Una cotización todavía no es una venta y un cancelado no movió producto.
-const ESTADOS_SIN_GANANCIA = ['cotizacion', 'cancelado'];
+// Un pedido cancelado no movió producto.
+const ESTADOS_SIN_GANANCIA = ['cancelado'];
 
 // Comparativa mensual (enero-diciembre) de la ganancia neta por plataforma
 // (Shein/Temu/Amazon) para un año dado: lo vendido menos lo pagado en la

@@ -58,9 +58,11 @@ import {
   ESTADO_PEDIDO,
   ESTADO_PEDIDO_EMOJI,
   ESTADO_PEDIDO_FRASE,
+  siguienteAccion,
 } from '@/lib/utils/pedidos';
 import { pedirApi } from '@/lib/api';
 import { notificar } from '@/lib/notificar';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 // Estados de producto donde tiene sentido ajustar el cobro con el cliente.
 const ESTADOS_AJUSTE: EstadoItemPedido[] = [
@@ -537,12 +539,33 @@ export default function PedidoDetallePage() {
           )
         }
       >
-        {!cerrado && <EstadoStepper
-            actual={data.estado}
-            onChange={cambiarEstado}
-            disabled={cambiandoEstado}
-            sinProductos={data.items.length === 0}
-          />}
+        {!cerrado && (
+          <>
+            <EstadoStepper actual={data.estado} disabled={cambiandoEstado} />
+            {(() => {
+              const sig = siguienteAccion(data.estado, { hayProductos: data.items.length > 0, saldado });
+              if (!sig) return null;
+              return (
+                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-secondary/30 px-3 py-2.5">
+                  {sig.tipo === 'estado' ? (
+                    <Button type="button" disabled={cambiandoEstado} onClick={() => cambiarEstado(sig.destino)}>
+                      {sig.label}
+                    </Button>
+                  ) : (
+                    <p className="text-sm text-muted">
+                      {sig.texto}{' '}
+                      {sig.href && (
+                        <Link href={sig.href} className="font-medium text-primary hover:underline">
+                          Ir ahora
+                        </Link>
+                      )}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+          </>
+        )}
 
         {desistiendo && (
           <form onSubmit={registrarDesistimiento} className="mt-4 flex flex-col gap-3 rounded-xl border border-negative/30 p-4">
@@ -590,7 +613,7 @@ export default function PedidoDetallePage() {
                 onChange={(e) => setReferenciaCompra(e.target.value)}
                 className="sm:w-56"
               />
-              <Input label="Fecha de compra" type="date" value={fechaCompra} onChange={(e) => setFechaCompra(e.target.value)} />
+              <DatePicker label="Fecha de compra" value={fechaCompra} onChange={setFechaCompra} />
               <Button type="submit">Guardar</Button>
               <Button type="button" variant="ghost" onClick={() => setEditandoCompra(false)}>
                 Cancelar
